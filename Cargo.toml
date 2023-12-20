@@ -24,3 +24,7 @@ tokio = { version = "1.35.0", features = ["full"] }
 scoped_threadpool = "0.1.*"
 scheduled-thread-pool = "0.2.7"
 poolite = "0.7.1"
+futures = { version = "0.3.29", features = ["thread-pool"] }
+futures-lite = "2.1.0"
+async-std = "1.12.0"
+smol = "1.3.0"

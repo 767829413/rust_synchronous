@@ -1,17 +1,19 @@
 mod base;
-use base::my_thread as mt;
-use base::my_thread_pool as mtp;
+use base::{my_async_await as maa, my_thread as mt, my_thread_pool as mtp};
 use std::thread;
 
-
-// use tokio::time::{sleep, Duration};
-
-
-
-fn main() {
+#[tokio::main]
+async fn main() {
     // threads_base_example();
-    thread_pool_example();
+    // thread_pool_example();
+    // 在运行时中异步执行任务
+    tokio::spawn(async { println!("do work") });
+    async_await_example().await;
 }
+
+// fn main() {
+//     maa::tokio_async();
+// }
 
 // thread
 #[allow(unused)]
@@ -50,6 +52,7 @@ fn threads_base_example() {
 }
 
 // thread pool
+#[allow(unused)]
 fn thread_pool_example() {
     mtp::rayon_build_example();
     mtp::rayon_threadpool2();
@@ -63,15 +66,19 @@ fn thread_pool_example() {
     mtp::scheduled_thread_pool();
 }
 
-// async fn my_async_function() {
-//     println!("Starting async function");
-//     sleep(Duration::from_secs(1)).await;
-//     println!("Async function completed");
-// }
-
-// #[tokio::main]
-// async fn main() {
-//     println!("Before calling async function");
-//     my_async_function().await;
-//     println!("After calling async function");
-// }
+// async/await
+#[allow(unused)]
+async fn async_await_example() {
+    maa::order_test().await;
+    maa::return_test().await;
+    maa::get_two_sites();
+    maa::get_two_sites_async().await;
+    maa::futures_async();
+    maa::futures_lite_example();
+    maa::async_std_example();
+    maa::smol_async_example();
+    maa::futures_select_example().await;
+    maa::futures_join_example().await;
+    maa::futures_try_join_example().await;
+    maa::smol_zip();
+}
