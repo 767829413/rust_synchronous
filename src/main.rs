@@ -1,7 +1,13 @@
 mod base;
+mod mping;
 use base::{my_async_await as maa, my_thread as mt, my_thread_pool as mtp};
 use std::thread;
 
+fn main() -> Result<(), anyhow::Error> {
+    return mping::exec::run();
+}
+
+/*
 #[tokio::main]
 async fn main() {
     // threads_base_example();
@@ -10,10 +16,7 @@ async fn main() {
     tokio::spawn(async { println!("do work") });
     async_await_example().await;
 }
-
-// fn main() {
-//     maa::tokio_async();
-// }
+*/
 
 // thread
 #[allow(unused)]

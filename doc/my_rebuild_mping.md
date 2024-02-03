@@ -98,3 +98,146 @@ Go 版本的 mping 功能如下:
 那么接下来过一下代码的实现，然后稍微比较一下 Rust 和 Go 版本 mping 工具不同点.
 
 rust 版本的完整代码在 github 上: <https://github.com/767829413/rust_synchronous/tree/main/src/mping>
+
+## 主程序入口
+
+1. 使用structopt定义命令行参数的结构体Opt:
+
+```rust
+// rust_synchronous/src/mping/exec.rs
+struct Opt {
+    #[clap(
+        short = 'w',
+        long = "timeout",
+        default_value = "1",
+        help = "timeout in seconds"
+    )]
+    timeout: u64,
+
+    #[clap(short = 't', long = "ttl", default_value = "64", help = "time to live")]
+    ttl: u32,
+
+    #[clap(short = 'z', long = "tos", help = "type of service")]
+    tos: Option<u32>,
+
+    #[clap(
+        short = 's',
+        long = "size",
+        default_value = "64",
+        help = "payload size"
+    )]
+    size: usize,
+
+    #[clap(
+        short = 'r',
+        long = "rate",
+        default_value = "100",
+        help = "rate in packets/second"
+    )]
+    rate: u64,
+
+    #[clap(
+        short = 'd',
+        long = "delay",
+        default_value = "3",
+        help = "delay in seconds"
+    )]
+    delay: u64,
+
+    #[clap(short = 'c', long = "count", help = "max packet count")]
+    count: Option<i64>,
+
+    #[clap(
+        value_delimiter = ',',
+        required = true,
+        name = "ip address",
+        help = "one ip address or more, e.g. 127.0.0.1,8.8.8.8/24,bing.com"
+    )]
+    free: Vec<std::path::PathBuf>,
+}
+```
+
+2. 解析多目标地址
+
+需要把`8.8.8.8/30`, `8.8.4.4`, `github.com` 这种的目标解析成要探测的目标地址列表:
+
+```rust
+fn parse_ips(input: &str) -> Vec<IpAddr> {
+    let mut ips = Vec::new();
+
+    for s in input.split(',') {
+        match s.parse::<IpNetwork>() {
+            Ok(network) => {
+                for ip in network.iter() {
+                    ips.push(ip);
+                }
+            }
+            Err(_) => {
+                if let Ok(ip) = s.parse::<IpAddr>() {
+                    ips.push(ip);
+                } else if let Ok(addrs) = (s, 0).to_socket_addrs() {
+                    for addr in addrs {
+                        if let IpAddr::V4(ipv4) = addr.ip() {
+                            ips.push(IpAddr::V4(ipv4));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return ips;
+}
+```
+
+3. 定义一个执行函数 run() 给 main.rs 调用
+
+```rust
+pub fn run() -> Result<(), anyhow::Error> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} [{}] {}",
+                Local::now().format("%H:%M:%S"),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
+
+    let opt = Opt::parse();
+
+    if opt.free.is_empty() {
+        println!("Please input ip address");
+        return Ok(());
+    }
+
+    let _ = opt.count;
+
+    let addrs = opt.free.last().unwrap().to_string_lossy();
+    let _ip_addrs = parse_ips(&addrs);
+
+    let _timeout = Duration::from_secs(opt.timeout);
+    let _pid = process::id() as u16;
+
+    let popt = mping::ping::PingOption {
+        timeout,
+        ttl: opt.ttl,
+        tos: opt.tos,
+        ident: pid,
+        len: opt.size,
+        rate: opt.rate,
+        rate_for_all: false,
+        delay: opt.delay,
+        count: opt.count,
+    };
+    // 实现发送、接收、定时统计的功能
+    mping::ping::ping(ip_addrs, popt, true, None)?;
+
+    Ok(())
+}
+```
+
+## 发送逻辑
