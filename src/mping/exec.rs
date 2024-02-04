@@ -7,6 +7,7 @@ use anyhow::Result;
 use chrono::Local;
 use clap::Parser;
 
+use crate::mping;
 use ipnetwork::IpNetwork;
 
 #[derive(Debug, Parser)]
@@ -89,25 +90,23 @@ pub fn run() -> Result<(), anyhow::Error> {
     let _ = opt.count;
 
     let addrs = opt.free.last().unwrap().to_string_lossy();
-    let _ip_addrs = parse_ips(&addrs);
+    let ip_addrs = parse_ips(&addrs);
 
-    let _timeout = Duration::from_secs(opt.timeout);
-    let _pid = process::id() as u16;
+    let timeout = Duration::from_secs(opt.timeout);
+    let pid = process::id();
 
-    // let popt = mping::ping::PingOption {
-    //     timeout,
-    //     ttl: opt.ttl,
-    //     tos: opt.tos,
-    //     ident: pid,
-    //     len: opt.size,
-    //     rate: opt.rate,
-    //     rate_for_all: false,
-    //     delay: opt.delay,
-    //     count: opt.count,
-    // };
-    // mping::ping::ping(ip_addrs, popt, true, None)?;
-
-    Ok(())
+    let popt = mping::ping::PingOption {
+        timeout,
+        ttl: opt.ttl,
+        tos: opt.tos,
+        ident: pid,
+        len: opt.size,
+        rate: opt.rate,
+        rate_for_all: false,
+        delay: opt.delay,
+        count: opt.count,
+    };
+    mping::ping::ping(ip_addrs, popt, true, None)
 }
 
 fn parse_ips(input: &str) -> Vec<IpAddr> {

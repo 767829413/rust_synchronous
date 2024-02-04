@@ -241,3 +241,63 @@ pub fn run() -> Result<(), anyhow::Error> {
 ```
 
 ## 发送逻辑
+
+### 发送入口函数 ping() 
+
+```rust
+pub fn ping(
+    addrs: Vec<IpAddr>,
+    popt: PingOption,
+    enable_print_stat: bool,
+    tx: Option<Sender<TargetResult>>,
+    // ) -> anyhow::Result<()> {
+) {
+    let pid = popt.ident;
+
+    let rand_payload = random_bytes(popt.len);
+    let read_rand_payload = rand_payload.clone();
+
+    // 构建存储 ping 结果的 Buckets
+    let buckets = Arc::new(Mutex::new(Buckets::new_buckets()));
+    // 发送
+    let send_buckets = buckets.clone();
+    // 接收
+    let read_buckets = buckets.clone();
+    // 状态打印
+    let stat_buckets = buckets.clone();
+......
+```
+
+1. 首先创建一个 raw socket 并设置它的选项
+
+```rust
+...... 
+
+    // 创建了一个新的套接字，指定了 IPv4 地址族、原始类型（RAW）以及 ICMPv4 协议。如果创建失败，会通过 unwrap() 抛出错误
+    let socket = Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).unwrap();
+    // 设置套接字的 TTL（Time-To-Live）值为 popt.ttl，即生存时间。如果设置失败，会通过 unwrap() 抛出错误
+    socket.set_ttl(popt.ttl).unwrap();
+    // 设置套接字的写超时时间为 popt.timeout。如果设置失败，会通过 unwrap() 抛出错误
+    socket.set_write_timeout(Some(popt.timeout)).unwrap();
+    // 如果在命令行选项中指定了 TOS（Type of Service）值，则设置套接字的 TOS 值为指定的值。如果设置失败，会通过 unwrap() 抛出错误
+    if let Some(tos_value) = popt.tos {
+        socket.set_tos(tos_value).unwrap();
+    }
+    // 尝试克隆套接字，如果克隆失败，则打印错误信息并终止程序
+    let socket2 = socket.try_clone().expect("Failed to clone socket");
+    // 检查是否设置接收, 使用 is_some() 方法检查其是否有值，如果有值则返回 true，否则返回 false, 结果存储在 has_tx 变量中
+    let has_tx = tx.is_some();
+
+......   
+}
+```
+
+2. 创建几种 payload,用来检查链路中有没有比特跳变和改包行为
+
+```rust
+```
+
+3. 创建一个限流器，让发送端按照指定的速率均匀的发包
+
+```rust
+```

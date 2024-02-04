@@ -16,7 +16,7 @@ pub struct Buckets {
 
 impl Buckets {
     // 创建一个新的 Buckets
-    fn new_buckets() -> Buckets {
+    pub fn new_buckets() -> Buckets {
         Buckets {
             buckets: Mutex::new(BinaryHeap::new()),
             map: Mutex::new(HashMap::new()),
