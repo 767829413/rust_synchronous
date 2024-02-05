@@ -158,11 +158,20 @@ fn random_bytes(len: usize) -> Vec<u8> {
     return vec;
 }
 
+// 用于从 Linux socket 消息头中提取时间戳的函数
+// 接受一个 msghdr, 返回一个 Option<SystemTime>
 #[cfg(target_os = "linux")]
 fn get_timestamp(msghdr: &mut msghdr) -> Option<SystemTime> {
+    // 获取 CMSG 指针
+    // 使用 libc::CMSG_FIRSTHDR 获取第一个 CMSG（控制消息）头的指针
+    // 在后续的循环中，将迭代 CMSG 消息头
     let mut cmsg: *mut cmsghdr = unsafe { libc::CMSG_FIRSTHDR(msghdr) };
 
     while !cmsg.is_null() {
+        // 判断 CMSG 消息头的 level 和 type，并提取时间戳
+        // 分别处理 SO_TIMESTAMP 和 SCM_TIMESTAMPING 两种情况
+        // 处理 SO_TIMESTAMP
+        // 如果 CMSG 消息头的 level 是 SOL_SOCKET, type 是 SO_TIMESTAMP, 则提取 timeval 结构体, 将其转换为 SystemTime
         if unsafe { (*cmsg).cmsg_level == SOL_SOCKET && (*cmsg).cmsg_type == SO_TIMESTAMP } {
             let tv: *mut timeval = unsafe { libc::CMSG_DATA(cmsg) } as *mut timeval;
             let timestamp = unsafe { *tv };
@@ -171,6 +180,9 @@ fn get_timestamp(msghdr: &mut msghdr) -> Option<SystemTime> {
                     + Duration::new(timestamp.tv_sec as u64, timestamp.tv_usec as u32 * 1000),
             );
         }
+
+        // 处理 SCM_TIMESTAMPING
+        // 如果 CMSG 消息头的 level 是 SOL_SOCKET, type 是 SCM_TIMESTAMPING, 则提取 [timespec; 3] 数组，遍历其中的 timespec, 将其转换为 SystemTime
         if unsafe { (*cmsg).cmsg_level == SOL_SOCKET && (*cmsg).cmsg_type == SCM_TIMESTAMPING } {
             let tv: *mut [timespec; 3] = unsafe { libc::CMSG_DATA(cmsg) } as *mut [timespec; 3];
             let timestamps = unsafe { *tv };
@@ -186,6 +198,8 @@ fn get_timestamp(msghdr: &mut msghdr) -> Option<SystemTime> {
             }
         }
 
+        // 循环迭代 CMSG 消息头
+        // 使用 libc::CMSG_NXTHDR 获取下一个 CMSG 消息头的指针, 用于下一次循环迭代
         cmsg = unsafe { libc::CMSG_NXTHDR(msghdr, cmsg) };
     }
 
@@ -201,8 +215,12 @@ fn send(
     pid: u16,
     has_tx: bool,
 ) -> anyhow::Result<()> {
+    // 条件化的 Linux socket 设置
     cfg_if! {
         if #[cfg(target_os = "linux")] {
+            // 在 Linux 环境下，根据目标操作系统的不同设置了一些 socket 选项
+            // 主要是关于时间戳的设置
+            // 如果设置失败，会将 support_tx_timestamping 置为 false
             let mut support_tx_timestamping = true;
             let raw_fd = socket.as_raw_fd();
             let enable = SOF_TIMESTAMPING_SOFTWARE
@@ -231,16 +249,25 @@ fn send(
         }
     }
 
+    // Payload 初始化
+    // 初始化了四种不同的 Payload 数据内容
+    // 全零数据
     let zero_payload = vec![0; popt.len];
+    // 全一数据
     let one_payload = vec![1; popt.len];
+    // 全 0x5A 数据
     let fivea_payload = vec![0x5A; popt.len];
-
+    // 随机数据 + 全零数据 + 全一数据 + 全 0x5A 数据组成 payloads
     let payloads: [&[u8]; 4] = [&rand_payload, &zero_payload, &one_payload, &fivea_payload];
 
+    // SyncLimiter 的初始化
+    // 使用 SyncLimiter 类型创建了一个速率限制器，用于控制发送速率
     let limiter = SyncLimiter::full(popt.rate, Duration::from_millis(1000));
     let mut seq = 1u16;
     let mut sent_count = 0;
 
+    // Linux 环境下的缓冲区初始化
+    // 主要初始化了用于网络通信的缓冲区和相关的结构体，如 iovec 和 msghdr
     cfg_if! {
         if #[cfg(target_os = "linux")] {
             let mut buf = [0; 2048];
@@ -262,17 +289,20 @@ fn send(
         }
     }
 
+    // 发送循环
     loop {
+        // 根据启动参数选择是否启用限速器
         if !popt.rate_for_all {
             limiter.take();
         }
-
         let payload = payloads[seq as usize % payloads.len()];
+        // 遍历目标地址集合，发送 ICMP Echo 请求
         for ip in &addrs {
             if popt.rate_for_all {
                 limiter.take();
             }
 
+            // 构造 ICMP Echo 请求包
             let mut buf = vec![0; 8 + payload.len()]; // 8 bytes of header, then payload
             let mut packet = echo_request::MutableEchoRequestPacket::new(&mut buf[..]).unwrap();
             packet.set_icmp_type(icmp::IcmpTypes::EchoRequest);
@@ -313,6 +343,7 @@ fn send(
             );
             drop(data);
 
+            // 发送 ICMP Echo 请求包
             match socket.send_to(&buf, &dest.into()) {
                 Ok(_) => {}
                 Err(e) => {
@@ -321,6 +352,7 @@ fn send(
                 }
             }
 
+            // 如果支持时间戳，接收并处理
             if support_tx_timestamping {
                 cfg_if! {
                     if #[cfg(target_os = "linux")] {
@@ -338,9 +370,11 @@ fn send(
             }
         }
 
+        // 更新序列号和发送计数
         seq += 1;
         sent_count += 1;
 
+        // 如果设置了发送次数限制，达到次数后退出循环
         if popt.count.is_some() && sent_count >= popt.count.unwrap() {
             thread::sleep(Duration::from_secs(popt.delay));
             info!("reached {} and exit", sent_count);
@@ -351,7 +385,7 @@ fn send(
         }
     }
 }
-// , addrs: Vec<IpAddr>, popt: PingOption, enable_print_stat: bool
+
 fn read(
     socket2: Socket,
     popt: PingOption,
@@ -359,6 +393,7 @@ fn read(
     pid: u16,
     read_rand_payload: Vec<u8>,
 ) -> anyhow::Result<()> {
+    // 同 send 的 Payload 初始化
     let zero_payload = vec![0; popt.len];
     let one_payload = vec![1; popt.len];
     let fivea_payload = vec![0x5A; popt.len];
@@ -370,9 +405,12 @@ fn read(
         &fivea_payload,
     ];
 
+    // 设置 socket 读取超时和时间戳选项
     socket2.set_read_timeout(Some(popt.timeout))?;
     let raw_fd = socket2.as_raw_fd();
 
+    // Linux 环境下的缓冲区和结构体初始化
+    // 同 send
     cfg_if! {
         if #[cfg(target_os = "linux")] {
             let enable = SOF_TIMESTAMPING_SOFTWARE
@@ -458,15 +496,18 @@ fn read(
 
         let buf = &buffer[..nbytes as usize];
 
+        // 解析 ICMP Echo 回复消息
         let ipv4_packet = Ipv4Packet::new(buf).unwrap();
         let icmp_packet = pnet_packet::icmp::IcmpPacket::new(ipv4_packet.payload()).unwrap();
 
+        // 判断 ICMP 报文类型和代码
         if icmp_packet.get_icmp_type() != IcmpTypes::EchoReply
             || icmp_packet.get_icmp_code() != echo_reply::IcmpCodes::NoCode
         {
             continue;
         }
 
+        // 解析 Echo 回复消息
         let echo_reply = match icmp::echo_reply::EchoReplyPacket::new(icmp_packet.packet()) {
             Some(echo_reply) => echo_reply,
             None => {
@@ -474,6 +515,7 @@ fn read(
             }
         };
 
+        // 根据 Echo 回复消息中的信息进行处理，例如比较标识符、序列号等
         if echo_reply.get_identifier() != pid {
             continue;
         }
@@ -508,7 +550,9 @@ fn read(
             }
         }
 
+        // 记录结果到数据结构中
         let buckets = read_buckets.lock().unwrap();
+        // 将回复信息加入 bucket 结构
         buckets.add_reply(
             txts / 1_000_000_000,
             Result {
@@ -530,12 +574,18 @@ fn print_stat(
     enable_print_stat: bool,
     tx: Option<Sender<TargetResult>>,
 ) -> anyhow::Result<()> {
+    // 统计打印的初始化和配置
+    // 包括延迟、最后一个 key、是否有发送通道以及一个 Ticker，用于每秒钟进行定期操作
     let delay = Duration::from_secs(popt.delay).as_nanos(); // 5s
     let mut last_key = 0;
 
     let has_sender = tx.is_some();
 
     let ticker = Ticker::new(0.., Duration::from_secs(1));
+
+    //定期统计信息输出
+    // 使用 Ticker 来定期执行循环体，获取当前存储 bucket 的信息
+    // 检查是否为空，然后进行后续统计逻辑
     for _ in ticker {
         let buckets = buckets.lock().unwrap();
         let bucket = buckets.last();
@@ -543,12 +593,16 @@ fn print_stat(
             continue;
         }
 
+        // bucket 信息的处理
+        // 检查 bucket key，并进行后续统计逻辑
         let bucket = bucket.unwrap();
+        // 如果 bucket key 小于等于上一次处理的 key，则弹出该存储桶，继续下一个循环
         if bucket.key <= last_key {
             buckets.pop();
             continue;
         }
 
+        // 然后检查 bucket 是否在指定的时间范围内，如果是，执行后续的统计逻辑
         if bucket.key
             <= SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -556,6 +610,7 @@ fn print_stat(
                 .as_nanos()
                 - delay
         {
+            // 计算统计信息并输出
             if let Some(pop) = buckets.pop() {
                 if pop.key < bucket.key {
                     continue;
@@ -584,7 +639,7 @@ fn print_stat(
                     }
                 }
 
-                // output
+                // 输出和通道发送
                 for (target, tr) in &target_results {
                     let total = tr.received + tr.loss;
                     let loss_rate = if total == 0 {
@@ -617,6 +672,7 @@ fn print_stat(
                         }
                     }
 
+                    // 如果有发送接收，将结果发送过去
                     if has_sender {
                         let mut tr = tr.clone();
                         tr.target = target.clone();
