@@ -41,3 +41,4 @@ rate_limit = "0.1.1"
 socket2 = { version = "0.5.4", features = ["all"] }
 structopt = "0.3.26"
 ticker = "0.1.1"
+beef = "0.5.2"

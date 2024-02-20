@@ -9,7 +9,7 @@ use futures::{
     try_join,
 };
 use futures_lite::future as fl_future;
-use smol::future::{try_zip, zip, FutureExt};
+use smol::future::{try_zip, zip};
 use std::{future::Future as std_Future, thread};
 use tokio::{
     join,

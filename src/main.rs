@@ -1,22 +1,42 @@
 mod base;
+mod concurrency;
 mod mping;
 use base::{my_async_await as maa, my_thread as mt, my_thread_pool as mtp};
+use concurrency::{my_box, my_cell, my_cow};
 use std::thread;
 
-fn main() -> Result<(), anyhow::Error> {
-    return mping::exec::run();
+fn main() {
+    /*
+    _ = my_mping();
+        // 创建了一个 Tokio 运行时rt
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let task = async {
+        async_await_example().await
+    };
+    rt.block_on(task);
+    maa::tokio_async();
+     */
+
+    my_concurrency()
 }
 
-/*
-#[tokio::main]
-async fn main() {
-    // threads_base_example();
-    // thread_pool_example();
-    // 在运行时中异步执行任务
-    tokio::spawn(async { println!("do work") });
-    async_await_example().await;
+// concurrency
+#[allow(unused)]
+fn my_concurrency() {
+    my_cow::cow_exp_string();
+    my_cow::cow_container_string();
+    my_cow::beef_cow();
+    my_box::box_stack_to_heap();
+    my_box::box_heap_to_stack();
+    my_box::box_auto_data_size();
+    my_cell::cell_exp();
 }
-*/
+
+// mping
+#[allow(unused)]
+fn my_mping() -> Result<(), anyhow::Error> {
+    return mping::exec::run();
+}
 
 // thread
 #[allow(unused)]

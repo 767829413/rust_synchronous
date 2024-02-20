@@ -181,6 +181,7 @@ pub struct Result {
 
 impl Result {
     // 创建一个 ping 结果
+    #[allow(unused)]
     fn new_result(txts: u128, target: &str, seq: u16) -> Result {
         Result {
             txts,
