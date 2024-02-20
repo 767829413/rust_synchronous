@@ -2,7 +2,7 @@
 
 ## 目的介绍
 
-使用 go 实现了一个探测多目标的高频探测程序 [mping](https://github.com/767829413/advanced-go/tree/main/ping/mping), 支持硬件时间戳和软件时间戳, 提供更精准的时延. 
+使用 go 实现了一个探测多目标的高频探测程序 [mping](https://github.com/767829413/advanced-go/blob/main/doc/ch8-Implementing%20ping%20by%20icmp%20package/README.md), 支持硬件时间戳和软件时间戳, 提供更精准的时延. 
 
 使用 rust 重写主要目的:
 
