@@ -2,7 +2,7 @@ mod base;
 mod concurrency;
 mod mping;
 use base::{my_async_await as maa, my_thread as mt, my_thread_pool as mtp};
-use concurrency::{my_box, my_cell, my_cow};
+use concurrency::{my_box, my_cell, my_cow, my_rc};
 use std::thread;
 
 fn main() {
@@ -30,6 +30,10 @@ fn my_concurrency() {
     my_box::box_heap_to_stack();
     my_box::box_auto_data_size();
     my_cell::cell_exp();
+    my_cell::ref_cell_exp();
+    my_cell::once_cell_exp();
+    my_rc::rc_exp();
+    my_rc::rc_refcell_example();
 }
 
 // mping
