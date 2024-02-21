@@ -34,6 +34,8 @@ fn my_concurrency() {
     my_cell::once_cell_exp();
     my_rc::rc_exp();
     my_rc::rc_refcell_example();
+    my_rc::arc_exp();
+    my_rc::arc_exp_mutex();
 }
 
 // mping
