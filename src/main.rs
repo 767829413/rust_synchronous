@@ -2,7 +2,7 @@ mod base;
 mod concurrency;
 mod mping;
 use base::{my_async_await as maa, my_thread as mt, my_thread_pool as mtp};
-use concurrency::{my_box, my_cell, my_cow, my_rc};
+use concurrency::{my_barrier, my_box, my_cell, my_cow, my_mutex, my_once, my_rc};
 use std::thread;
 
 fn main() {
@@ -36,6 +36,20 @@ fn my_concurrency() {
     my_rc::rc_refcell_example();
     my_rc::arc_exp();
     my_rc::arc_exp_mutex();
+    my_mutex::mutex_lock_exp();
+    my_mutex::mutex_try_lock_exp();
+    my_mutex::mutex_poisoning_exp();
+    my_mutex::mutex_fast_release_scop_exp();
+    my_mutex::mutex_fast_release_drop_exp();
+    my_mutex::rwmutex_exp();
+    my_mutex::rwmutex_exp_write_wait();
+    my_mutex::rwmutex_exp_read_wait();
+    my_mutex::rwmutex_exp_dead_lock();
+    my_once::once_exp();
+    my_once::once_exp_get_config();
+    my_once::once_cell_exp();
+    my_barrier::barrier_exp();
+    my_barrier::barrier_loop();
 }
 
 // mping

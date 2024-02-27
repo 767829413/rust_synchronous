@@ -4,7 +4,6 @@ use std::{
     rc::Rc,
 };
 
-
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -81,30 +80,4 @@ pub fn arc_exp_mutex() {
 
     // 打印最终的计数器值
     println!("Final count: {}", *counter.lock().unwrap());
-}
-
-pub fn arc_exp_mutex_refcell() {
-    // 创建一个可共享的可变整数
-    let counter = Arc::new(RefCell::new(0));
-
-    // 创建多个线程来增加计数器的值
-    let mut handles = vec![];
-
-    for _ in 0..5 {
-        let counter = Arc::clone(&counter);
-        let handle = thread::spawn(move || {
-            // 使用RefCell获取可变引用，确保运行时借用检查
-            let mut num = counter.borrow_mut();
-            *num += 1;
-        });
-        handles.push(handle);
-    }
-
-    // 等待所有线程完成
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    // 打印最终的计数器值
-    println!("Final count: {}", *counter.borrow());
 }

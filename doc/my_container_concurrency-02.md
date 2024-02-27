@@ -138,84 +138,88 @@ pub fn arc_exp_mutex() {
 }
 ```
 
->`Arc`和 `RefCell` 结合使用的场景通常发生在多线程中需要共享可变状态，但又不需要互斥锁的场合。
+## 互斥锁 Mutex
+
+>互斥锁在很多编程语言中都有实现。
 >
->`RefCell`允许在运行时进行借用检查，因此在单线程环境下使用时，它不会像 `Mutex` 那样引入锁的开销。
+>`Mutex` 是 `Rust` 中的互斥锁，用于解决多线程并发访问共享数据时可能出现的竞态条件。
 >
->以下是一个使用 `Arc` 和 `RefCell` 的简单例子，演示了在多线程环境中共享可变状态,注意这个例子只是用来演示，我们并不期望 `num` 的最终结果和上面的例子一样：
+>`Mutex` 提供了一种机制，只有拥有锁的线程才能访问被锁定的数据，其他线程必须等待锁的释放。
+>
+
+### Lock
+
+>
+>在标准库中，`Mutex` 位于 `std::sync` 模块下。
+>下面是一个简单的例子，演示了如何使用 Mutex：
 
 ```rust
-use std::sync::{Arc};
-use std::cell::RefCell;
+use std::sync::{Mutex, Arc};
 use std::thread;
 
+pub fn mutex_lock_exp(){
+        // 创建一个可共享的可变整数
+        let counter = Arc::new(Mutex::new(0));
 
+        // 创建多个线程来增加计数器的值
+        let mut handles = vec![];
+    
+        for _ in 0..11 {
+            let counter = Arc::clone(&counter);
+            let handle = thread::spawn(move || {
+                // 获取锁，确保只有一个线程能够访问计数器
+                let mut num = counter.lock().unwrap();
+                *num += 1;
+            });
+            handles.push(handle);
+        }
+    
+        // 等待所有线程完成
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    
+        // 打印最终的计数器值
+        println!("Final count: {}", counter.lock().unwrap());
+}
 ```
 
+>上面这个例子中，`counter` 是一个 `Mutex` 保护(且包装)的可变整数，然后使用 `Arc` 来多线程共享。
+>
+> 在每个线程中，通过 `counter.lock().unwrap()` 获取锁，确保一次只有一个线程能够修改计数器的值。
+>
+>这样可以确保在并发情况下不会发生竞态条件。
+>
+>需要注意的是，`lock` 方法返回一个 `MutexGuard`，它是一个智能指针，实现了 `Deref` 和 `Drop trait`。
+>
+>当 `MutexGuard` 被销毁时，会自动释放锁，确保在任何情况下都能正确释放锁。
+>
+>这里注意三个知识点：
+>
+>* 为了跨线程支持，一般`Mutex`会和`Arc`组合使用,这样`Mutex`对象在每个线程中都能安全访问
+>* `lock`方法返回实现了 `Deref trait` 的`MutexGuard`对象，所以它会自动解引用，可以直接调用被保护对象上的方法
+>* `MutexGuard`还实现了`Drop`, 所以锁会自动解锁，一般你不需要主动调用`drop`去解锁
+>
+>目前 `nightly` 版本的 `rust` 提供了一个实验性的方法`unlock`,功能和`drop`一样，也是释放互斥锁。
 
-互斥锁 Mutex
-互斥锁历史悠久，在很多编程语言中都有实现。
+### try_lock
 
-Mutex 是 Rust 中的互斥锁，用于解决多线程并发访问共享数据时可能出现的竞态条件。Mutex 提供了一种机制，只有拥有锁的线程才能访问被锁定的数据，其他线程必须等待锁的释放。
+>`Mutex` 的 `try_lock` 方法尝试获取锁，如果锁已经被其他线程持有，则立即返回 `Err` 而不是阻塞线程。这对于在尝试获取锁时避免线程阻塞很有用。
+>
+>以下是一个使用 try_lock 的简单例子：
 
-Lock
-在标准库中，Mutex 位于 std::sync 模块下。下面是一个简单的例子，演示了如何使用 Mutex：
-
+```rust
 use std::sync::{Mutex, Arc};
 use std::thread;
 
-fn main() {
+pub fn mutex_try_lock_exp() {
     // 创建一个可共享的可变整数
     let counter = Arc::new(Mutex::new(0));
 
     // 创建多个线程来增加计数器的值
     let mut handles = vec![];
 
-    for _ in 0..5 {
-        let counter = Arc::clone(&counter);
-        let handle = thread::spawn(move || {
-            // 获取锁，确保只有一个线程能够访问计数器
-            let mut num = counter.lock().unwrap();
-            *num += 1;
-        });
-        handles.push(handle);
-    }
-
-    // 等待所有线程完成
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    // 打印最终的计数器值
-    println!("Final count: {}", *counter.lock().unwrap());
-}
-在这个例子中，counter 是一个 Mutex 保护(且包装)的可变整数，然后使用 Arc 来多线程共享。在每个线程中，通过 counter.lock().unwrap() 获取锁，确保一次只有一个线程能够修改计数器的值。这样可以确保在并发情况下不会发生竞态条件。
-
-需要注意的是，lock 方法返回一个 MutexGuard，它是一个智能指针，实现了 Deref 和 Drop trait。当 MutexGuard 被销毁时，会自动释放锁，确保在任何情况下都能正确释放锁。
-
-这里注意三个知识点：
-
-为了跨线程支持，一般Mutex会和Arc组合使用,这样Mutex对象在每个线程中都能安全访问
-lock方法返回实现了 Deref trait 的MutexGuard对象，所以它会自动解引用，你可以直接调用被保护对象上的方法
-MutexGuard还实现了Drop, 所以锁会自动解锁，一般你不需要主动调用drop去解锁
-目前 nightly 版本的 rust 提供了一个实验性的方法unlock,功能和drop一样，也是释放互斥锁。
-
-try_lock
-Mutex 的 try_lock 方法尝试获取锁，如果锁已经被其他线程持有，则立即返回 Err 而不是阻塞线程。这对于在尝试获取锁时避免线程阻塞很有用。
-
-以下是一个使用 try_lock 的简单例子：
-
-use std::sync::{Mutex, Arc};
-use std::thread;
-
-fn main() {
-    // 创建一个可共享的可变整数
-    let counter = Arc::new(Mutex::new(0));
-
-    // 创建多个线程来增加计数器的值
-    let mut handles = vec![];
-
-    for _ in 0..5 {
+    for _ in 0..5000 {
         let counter = Arc::clone(&counter);
         let handle = thread::spawn(move || {
             // 尝试获取锁，如果获取失败就继续尝试或者放弃
@@ -236,21 +240,35 @@ fn main() {
     // 打印最终的计数器值
     println!("Final count: {}", *counter.lock().unwrap());
 }
-在这个例子中，try_lock 方法被用于尝试获取锁。如果获取成功，线程就可以修改计数器的值，否则它会打印一条消息表示没有获取到锁。
+```
 
-需要注意的是，try_lock 方法返回一个 Result，如果获取锁成功，返回 Ok 包含 MutexGuard，否则返回 Err。这使得你可以根据获取锁的结果执行不同的逻辑。
+>在上面例子中，`try_lock` 方法被用于尝试获取锁。如果获取成功，线程就可以修改计数器的值，否则它会打印一条消息表示没有获取到锁。
+>
+>需要注意的是，`try_lock` 方法返回一个 `Result`，如果获取锁成功，返回 `Ok` 包含 `MutexGuard`，否则返回 `Err`。
+>
+>可以根据获取锁的结果执行不同的逻辑。
 
-Poisoning
-在 Rust 中，poisoning 是一种用于处理线程 panic 导致的不可恢复的状态的机制。这个概念通常与 Mutex 和 RwLock 相关。当一个线程在持有锁的情况下 panic 时，这就会导致锁进入一种不一致的状态，因为锁的内部状态可能已经被修改，而没有机会进行清理。为了避免这种情况，Rust 的标准库使用 poisoning 机制(形象的比喻)。具体来说，在 Mutex 和 RwLock 中，当一个线程在持有锁的时候 panic，锁就会被标记为 poisoned。此后任何线程尝试获取这个锁时，都会得到一个 PoisonError，它包含一个标识锁是否被 poisoned 的标志。这样，线程可以检测到之前的 panic，并进行相应的处理。
+### Poisoning
 
-Mutex 通过在 LockResult 中包装 PoisonError 来表示这种情况。具体来说，LockResult 的 Err 分支是一个 PoisonError，其中包含一个 MutexGuard。你可以通过 into_inner 方法来获取 MutexGuard，然后继续操作。
+>在 `Rust` 中，`poisoning` 是一种用于处理线程 `panic` 导致的不可恢复的状态的机制。
+>
+>这个概念通常与 `Mutex` 和 `RwLock` 相关。
+>
+>当一个线程在持有锁的情况下 `panic` 时，这就会导致锁进入一种不一致的状态，因为锁的内部状态可能已经被修改，而没有机会进行清理。
+>
+>为了避免这种情况，`Rust` 的标准库使用 `poisoning` 机制(中毒)。
+>
+>在 `Mutex` 和 `RwLock` 中，当一个线程在持有锁的时候 `panic`，锁就会被标记为 `poisoned`。此后任何线程尝试获取这个锁时，都会得到一个 `PoisonError`，它包含一个标识锁是否被 `poisoned` 的标志。这样，线程可以检测到之前的 `panic`，并进行相应的处理。
+>
+>`Mutex` 通过在 `LockResult` 中包装 `PoisonError` 来表示这种情况。具体来说，`LockResult` 的 `Err` 分支是一个 `PoisonError`，其中包含一个 `MutexGuard`。可以通过 `into_inner` 方法来获取 `MutexGuard`，然后继续操作。
+>
+>以下是一个简单的例子，演示了锁的 "poisoning"，以及如何处理：
 
-以下是一个简单的例子，演示了锁的 "poisoning"，以及如何处理：
-
+```rust
 use std::sync::{Mutex, Arc, LockResult, PoisonError};
 use std::thread;
 
-fn main() {
+pub fn mutex_poisoning_exp() {
     // 创建一个可共享的可变整数
     let counter = Arc::new(Mutex::new(0));
 
@@ -287,105 +305,156 @@ fn main() {
 
     // 等待所有线程完成
     for handle in handles {
-        handle.join().unwrap();
+        let r = handle.join();
+        match r {
+            Ok(_ok) => {
+                println!("Final task")
+            }
+            Err(e) => {
+                println!("error task {:?}", e);
+            }
+        }
     }
 
     // 打印最终的计数器值
-    println!("Final count: {}", *counter.lock().unwrap());
+    let rs = counter.lock();
+    match rs {
+        Ok(num) => {
+            println!("Final count: {}", num);
+        }
+        Err(e) => {
+            // 锁被 "poisoned"，处理错误
+            println!("Final print num failed: {}", e.to_string());
+        }
+    }
 }
-在这个例子中，当计数器的值达到 3 时，一个线程故意引发了 panic，其他线程在尝试获取锁时就会得到一个 PoisonError。在错误处理分支，我们打印错误信息，然后使用 into_inner 方法获取 MutexGuard，以确保锁被正确释放。这样其他线程就能够继续正常地使用锁。
+```
 
-更快的释放互斥锁
-前面说了，因为MutexGuard实现了Drop了，所以锁可以自动释放，可是如果锁的 scope 太大，我们想尽快的释放，该怎么办呢？
+>
+>在上面例子中，当计数器的值达到 3 时，一个线程故意引发了 `panic`，其他线程在尝试获取锁时就会得到一个 `PoisonError`。
+>
+>在错误处理分支，我们打印错误信息，然后使用 `into_inner` 方法获取 `MutexGuard`，以确保锁被正确释放。
+>
+>这样其他线程就能够继续正常地使用锁。
 
-第一种方式你可以通过创建一个新的内部的作用域(scope)来达到类似手动释放 Mutex 的效果。在新的作用域中，MutexGuard 将在离开作用域时自动释放锁。这是通过作用域的离开而触发的 Drop trait 的实现。：
+### 更快的释放互斥锁
 
+>前面说了，因为`MutexGuard`实现了`Drop`了，所以锁可以自动释放，可是如果锁的 `scope` 太大，想尽快的释放，该怎么办呢？
+>
+>* 第一种方式:
+>
+>   * 通过创建一个新的内部的作用域`(scope)`来达到类似手动释放 `Mutex` 的效果
+>   * 在新的作用域中，`MutexGuard` 将在离开作用域时自动释放锁。
+>   * 这是通过作用域的离开而触发的 `Drop trait` 的实现。
+>
+>以下是一个演示内部作用域释放 Mutex 的例子：
+
+```rust
 use std::sync::{Mutex, Arc};
 use std::thread;
 
-fn main() {
-    // 创建一个可共享的可变整数
-    let counter = Arc::new(Mutex::new(0));
+pub fn mutex_fast_release_exp() {
+        // 创建一个可共享的可变整数
+        let counter = Arc::new(Mutex::new(0));
+    
+        // 创建多个线程来增加计数器的值
+        let mut handles = vec![];
+    
+        for _ in 0..115 {
+            let counter = Arc::clone(&counter);
+            let handle = thread::spawn(move || {
+                // 进入一个新的作用域!!!!!!!!!!!!!!
+                {
+                    // 获取锁
+                    let mut num = counter.lock().unwrap();
+                    *num += 1;
+                    // MutexGuard 在这个作用域结束时自动释放锁
+                }
+    
+                // 在这里，锁已经被释放
+                // 这里可以进行其他操作
+            });
+            handles.push(handle);
+        }
+    
+        // 等待所有线程完成
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    
+        // 打印最终的计数器值
+        println!("Final count: {}", *counter.lock().unwrap());
+}
+```
 
-    // 创建多个线程来增加计数器的值
-    let mut handles = vec![];
+>* 第二种方式
+>
+>   * 主动`drop`或者`unlock`
+>
+>以下是一个演示手动释放 Mutex 的例子：
 
-    for _ in 0..5 {
-        let counter = Arc::clone(&counter);
-        let handle = thread::spawn(move || {
-            // 进入一个新的作用域!!!!!!!!!!!!!!
-            {
+```rust
+use std::sync::{Mutex, Arc};
+use std::thread;
+
+pub fn mutex_fast_release_drop_exp(){
+        // 创建一个可共享的可变整数
+        let counter = Arc::new(Mutex::new(0));
+
+        // 创建多个线程来增加计数器的值
+        let mut handles = vec![];
+    
+        for _ in 0..33 {
+            let counter = Arc::clone(&counter);
+            let handle = thread::spawn(move || {
                 // 获取锁
                 let mut num = counter.lock().unwrap();
                 *num += 1;
-                // MutexGuard 在这个作用域结束时自动释放锁
-            }
-
-            // 在这里，锁已经被释放
-            // 这里可以进行其他操作
-        });
-        handles.push(handle);
-    }
-
-    // 等待所有线程完成
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    // 打印最终的计数器值
-    println!("Final count: {}", *counter.lock().unwrap());
+    
+                // 手动释放锁!!!!!!!!
+                drop(num);
+            });
+            handles.push(handle);
+        }
+    
+        // 等待所有线程完成
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    
+        // 打印最终的计数器值
+        println!("Final count: {}", *counter.lock().unwrap());
 }
-第二种方法就是主动drop或者unlock,以下是一个演示手动释放 Mutex 的例子：
+```
 
-use std::sync::{Mutex, Arc};
-use std::thread;
+>
+>`Mutex`应该不是可重入锁，但是官方文档把它标记为[未定义的行为](https://github.com/rust-lang/rust/issues/32260)，所以不要试图在同一个线程中获取两次锁!
 
-fn main() {
-    // 创建一个可共享的可变整数
-    let counter = Arc::new(Mutex::new(0));
+## 读写锁 RWMutex
 
-    // 创建多个线程来增加计数器的值
-    let mut handles = vec![];
+>`RWMutex` 是 `Rust` 中的`读写锁（Read-Write Lock）`，允许多个线程同时获取共享数据的读取访问权限，但在写入时会排他。
+>
+>这意味着多个线程可以同时读取数据，但只有一个线程能够写入数据，且写入时不允许其他线程读取或写入。
+>
+>读写锁一般使用在下面的场景中：
+>
+>* 读多写少的情况：
+>   * 当多个线程需要同时读取共享数据而写入操作较少时，使用 `RWMutex` 可以提高并发性能
+>   * 多个线程可以同时获取读取锁，而写入操作会排他进行。
+>* 只读访问和写入访问不冲突的情况：
+>   * 如果在程序的逻辑中，读取操作和写入操作是独立的，没有冲突，那么使用 RWMutex 可以更好地利用并发性能。
+>* 资源分配和释放阶段：
+>   * 当需要在一段时间内只允许读取，然后在另一段时间内只允许写入时，`RWMutex` 可以提供更灵活的控制
+>
+>以下是使用 `RWMutex`的例子 ：
 
-    for _ in 0..5 {
-        let counter = Arc::clone(&counter);
-        let handle = thread::spawn(move || {
-            // 获取锁
-            let mut num = counter.lock().unwrap();
-            *num += 1;
-
-            // 手动释放锁!!!!!!!!
-            drop(num);
-        });
-        handles.push(handle);
-    }
-
-    // 等待所有线程完成
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    // 打印最终的计数器值
-    println!("Final count: {}", *counter.lock().unwrap());
-}
-Mutex是可重入锁吗？应该不是，但是官方文档把它标记为未定义的行为[1]，所以不要试图在同一个线程中获取两次锁, 如果你想使用可重入锁，请使用我将来要介绍的第三方并发库。同样需要注意的是读写锁RWMutex。
-
-读写锁 RWMutex
-RWMutex 是 Rust 中的读写锁（Read-Write Lock），允许多个线程同时获取共享数据的读取访问权限，但在写入时会排他。这意味着多个线程可以同时读取数据，但只有一个线程能够写入数据，且写入时不允许其他线程读取或写入。
-
-读写锁一般使用在下面的场景中：
-
-读多写少的情况：当多个线程需要同时读取共享数据而写入操作较少时，使用 RWMutex 可以提高并发性能。多个线程可以同时获取读取锁，而写入操作会排他进行。
-只读访问和写入访问不冲突的情况：如果在程序的逻辑中，读取操作和写入操作是独立的，没有冲突，那么使用 RWMutex 可以更好地利用并发性能。
-资源分配和释放阶段：当需要在一段时间内只允许读取，然后在另一段时间内只允许写入时，RWMutex 可以提供更灵活的控制
-以下是使用 RWMutex的例子 ：
-
+```rust
 use std::sync::{RwLock, Arc};
 use std::thread;
 
-fn main() {
+pub fn rwmutex_exp() {
     // 创建一个可共享的可变整数，使用RwLock包装
-    let counter = Arc::new(RwLock::new(0));
+    let counter = Arc::new(RwLock::new(12));
 
     // 创建多个线程来读取计数器的值
     let mut read_handles = vec![];
@@ -395,7 +464,7 @@ fn main() {
         let handle = thread::spawn(move || {
             // 获取读取锁
             let num = counter.read().unwrap();
-            println!("Reader {}: {}", thread::current().id(), *num);
+            println!("Reader {:?}: {}", thread::current().id(), *num);
         });
         read_handles.push(handle);
     }
@@ -405,7 +474,11 @@ fn main() {
         // 获取写入锁
         let mut num = counter.write().unwrap();
         *num += 1;
-        println!("Writer {}: Incremented counter to {}", thread::current().id(), *num);
+        println!(
+            "Writer {:?}: Incremented counter to {}",
+            thread::current().id(),
+            *num
+        );
     });
 
     // 等待所有读取线程完成
@@ -416,22 +489,28 @@ fn main() {
     // 等待写入线程完成
     write_handle.join().unwrap();
 }
-它的使用和互斥锁类似，只不过需要调用read()方法获得读锁，使用write()方法获得写锁。
+```
 
-读写锁有以下的性质:
+>它的使用和互斥锁类似，只不过需要调用read()方法获得读锁，使用write()方法获得写锁。
+>
+>读写锁有以下的性质:
+>
+>* 多个线程可以同时获取读锁,实现并发读
+>* 只有一个线程可以获取写锁,写时会独占锁
+>* 如果已经获取了读锁,则不能获取写锁,防止数据竞争
+>* 如果已经获取了写锁,则不能再获取读锁或写锁,写独占时防止并发读写
+>
+>当一个线程已经持有读锁，而另一个线程请求写锁，它必须等待读锁被释放。
+>这确保在写入操作进行时，没有其他线程能够同时持有读锁。写锁确保了对共享数据的写入操作是独占的。
+>下面这个例子就可以用来说明这点:
 
-多个线程可以同时获取读锁,实现并发读
-只有一个线程可以获取写锁,写时会独占锁
-如果已经获取了读锁,则不能获取写锁,防止数据竞争
-如果已经获取了写锁,则不能再获取读锁或写锁,写独占时防止并发读写
-如果一个线程已经持有读锁，而另一个线程请求写锁，它必须等待读锁被释放。这确保在写入操作进行时，没有其他线程能够同时持有读锁。写锁确保了对共享数据的写入操作是独占的。
-
+```rust
 use std::sync::{RwLock, Arc};
 use std::thread;
 
-fn main() {
+pub fn rwmutex_exp_wait() {
     // 创建一个可共享的可变整数，使用RwLock包装
-    let counter = Arc::new(RwLock::new(0));
+    let counter = Arc::new(RwLock::new(99));
 
     // 创建一个线程持有读锁
     let read_handle = {
@@ -439,10 +518,10 @@ fn main() {
         thread::spawn(move || {
             // 获取读锁
             let num = counter.read().unwrap();
-            println!("Reader {}: {}", thread::current().id(), *num);
+            println!("Reader {:?}: {}", thread::current().id(), *num);
 
             // 休眠模拟读取操作
-            thread::sleep(std::time::Duration::from_secs(10));
+            thread::sleep(std::time::Duration::from_secs(3));
         })
     };
 
@@ -451,13 +530,17 @@ fn main() {
         let counter = Arc::clone(&counter);
         thread::spawn(move || {
             // 休眠一小段时间，确保读锁已经被获取
-            thread::sleep(std::time::Duration::from_secs(1));
+            // thread::sleep(std::time::Duration::from_secs(1));
 
             // 尝试获取写锁
             // 注意：这里会等待读锁被释放
             let mut num = counter.write().unwrap();
             *num += 1;
-            println!("Writer {}: Incremented counter to {}", thread::current().id(), *num);
+            println!(
+                "Writer {:?}: Incremented counter to {}",
+                thread::current().id(),
+                *num
+            );
         })
     };
 
@@ -465,10 +548,20 @@ fn main() {
     read_handle.join().unwrap();
     write_handle.join().unwrap();
 }
-更进一步，在写锁请求后，再有新的读锁请求进来，它是在等待写锁释放？还是直接获得读锁？答案是等待写锁释放，看下面的例子：
+```
 
+>更进一步，在写锁请求后，再有新的读锁请求进来，
+>它是在等待写锁释放？
+>还是直接获得读锁？
+>答案是等待写锁释放，看下面的例子：
+
+```rust
+use std::sync::{RwLock, Arc};
+use std::thread;
+
+pub fn rwmutex_exp_read_wait() {
     // 创建一个可共享的可变整数，使用RwLock包装
-    let counter = Arc::new(RwLock::new(0));
+    let counter = Arc::new(RwLock::new(333));
 
     // 创建一个线程持有读锁
     let read_handle = {
@@ -479,7 +572,7 @@ fn main() {
             println!("Reader#1: {}", *num);
 
             // 休眠模拟读取操作
-            thread::sleep(std::time::Duration::from_secs(10));
+            thread::sleep(std::time::Duration::from_secs(5));
         })
     };
 
@@ -493,7 +586,7 @@ fn main() {
             // 尝试获取写锁
             let mut num = counter.write().unwrap();
             *num += 1;
-            println!("Writer : Incremented counter to {}",  *num);
+            println!("Writer : Incremented counter to {}", *num);
         })
     };
 
@@ -514,29 +607,40 @@ fn main() {
     read_handle.join().unwrap();
     write_handle.join().unwrap();
     read_handle_2.join().unwrap();
-死锁是一种并发编程中的常见问题，可能发生在 RwLock 使用不当的情况下。一个典型的死锁场景是，一个线程在持有读锁的情况下尝试获取写锁，而其他线程持有写锁并尝试获取读锁，导致彼此相互等待。
+}
+```
 
-以下是一个简单的例子，演示了可能导致 RwLock 死锁的情况：
+>死锁是一种并发编程中的常见问题，可能发生在 RwLock 使用不当的情况下。
+>
+>一个典型的死锁场景是，一个线程在持有读锁的情况下尝试获取写锁，而其他线程持有写锁并尝试获取读锁，导致彼此相互等待。
+>
+>以下是一个简单的例子，演示了可能导致 RwLock 死锁的情况：
 
-use std::sync::{RwLock, Arc};
+```rust
+use crossbeam::channel::bounded;
+use std::sync::{Arc, LockResult, Mutex, RwLock};
 use std::thread;
+use std::time::Duration;
 
-fn main() {
+pub fn rwmutex_exp_dead_lock() {
     // 创建一个可共享的可变整数，使用RwLock包装
-    let counter = Arc::new(RwLock::new(0));
-
+    let counter = Arc::new(RwLock::new(444));
     // 创建一个线程持有读锁，尝试获取写锁
     let read_and_write_handle = {
         let counter = Arc::clone(&counter);
         thread::spawn(move || {
             // 获取读锁
             let num = counter.read().unwrap();
-            println!("Reader {}: {}", thread::current().id(), *num);
+            println!("Reader {:?}: {}", thread::current().id(), *num);
 
             // 尝试获取写锁，这会导致死锁
             let mut num = counter.write().unwrap();
             *num += 1;
-            println!("Reader {}: Incremented counter to {}", thread::current().id(), *num);
+            println!(
+                "Reader {:?}: Incremented counter to {}",
+                thread::current().id(),
+                *num
+            );
         })
     };
 
@@ -547,39 +651,64 @@ fn main() {
             // 获取写锁
             let mut num = counter.write().unwrap();
             *num += 1;
-            println!("Writer {}: Incremented counter to {}", thread::current().id(), *num);
+            println!(
+                "Writer {:?}: Incremented counter to {}",
+                thread::current().id(),
+                *num
+            );
 
             // 尝试获取读锁，这会导致死锁
             let num = counter.read().unwrap();
-            println!("Writer {}: {}", thread::current().id(), *num);
+            println!("Writer {:?}: {}", thread::current().id(), *num);
         })
     };
-
+    let (s, r) = bounded(0);
     // 等待线程完成
-    read_and_write_handle.join().unwrap();
-    write_and_read_handle.join().unwrap();
+    thread::spawn(move || {
+        read_and_write_handle.join().unwrap();
+        write_and_read_handle.join().unwrap();
+        let _ = s.send(());
+    });
+    //3秒超时
+    if let Ok(_msg) = r.recv_timeout(Duration::from_secs(3)) {
+        println!("Task end!");
+    } else {
+        println!("Time out");
+    };
 }
-和 Mutex 一样,RwLock 在 panic 时也会变为中毒状态。但是请注意,只有在 RwLock 被独占式写入锁住时发生 panic,它才会中毒。如果在任意 reader 中发生 panic,该锁则不会中毒。
+```
 
-原因是:
+>`RwLock` 和 `Mutex` 一样, 在 `panic` 时也会变为中毒状态。
+>
+>但是只有在 `RwLock` 被独占式写入锁住时发生 `panic`,它才会中毒。
+>
+>如果在任意 `reader` 中发生 `panic`,该锁则不会中毒。
+>
+>原因是:
+>
+>* `RwLock` 允许多个 `reader` 同时获取读锁,读是非独占的。
+>* 如果任一个 `reader panic`,其他读者依然持有读锁,所以不能将状态标记为中毒。
+>* 只有当前线程独占式拥有写锁时发生 `panic`,由于没有其他线程持有锁,这时可以安全地将状态标记为中毒。
+>
+>所以综上,`RwLock` 只会在独占式写入时发生 panic 时中毒。而 reader panic 不会导致中毒。这是由 RwLock 读写锁语义决定的。
+>
+>这种机制可以避免不必要的中毒,因为非独占的读锁之间不会互相影响,其中任一个锁持有者 `panic` 不应影响其他读者。
+>
+>只有独占写锁需要特殊处理。
 
-RwLock 允许多个 reader 同时获取读锁,读是非独占的。
-如果任一个 reader panic,其他读者依然持有读锁,所以不能将状态标记为中毒。
-只有当前线程独占式拥有写锁时发生 panic,由于没有其他线程持有锁,这时可以安全地将状态标记为中毒。
-所以综上,RwLock 只会在独占式写入时发生 panic 时中毒。而 reader panic 不会导致中毒。这是由 RwLock 读写锁语义决定的。
+## 一次初始化 Once
 
-这种机制可以避免不必要的中毒,因为非独占的读锁之间不会互相影响,其中任一个锁持有者 panic 不应影响其他读者。只有独占写锁需要特殊处理。
+>`std::sync::Once` 是 `Rust` 中的一种并发原语，用于确保某个操作在整个程序生命周期内只执行一次。
+>
+>`Once` 主要用于在多线程环境中执行初始化代码，确保该代码只被执行一次，即使有多个线程同时尝试执行它。
+>
+>以下是使用Once的一个例子：
 
-一次初始化 Once
-std::sync::Once 是 Rust 中的一种并发原语，用于确保某个操作在整个程序生命周期内只执行一次。Once 主要用于在多线程环境中执行初始化代码，确保该代码只被执行一次，即使有多个线程同时尝试执行它。
+```rust
+use std::sync::Once;
+static INIT: Once = Once::new();
 
-以下是使用Once的一个例子：
-
-use std::sync::{Once, ONCE_INIT};
-
-static INIT: Once = ONCE_INIT;
-
-fn main() {
+pub fn once_exp(){
     // 通过 call_once 方法确保某个操作只执行一次
     INIT.call_once(|| {
         // 这里放置需要执行一次的初始化代码
@@ -591,70 +720,90 @@ fn main() {
         println!("This won't be printed.");
     });
 }
-使用场景:
+```
 
-全局初始化：在程序启动时执行一些全局初始化操作，例如初始化全局变量、加载配置等。
-懒加载：在需要时进行一次性初始化，例如懒加载全局配置。
-单例模式：通过 Once 可以实现线程安全的单例模式，确保某个对象在整个程序生命周期内只被初始化一次。
-下面这个例子是带返回值的例子，实现懒加载全局配置的场景：
+>使用场景:
+>
+>* 全局初始化：在程序启动时执行一些全局初始化操作，例如初始化全局变量、加载配置等。
+>* 懒加载：在需要时进行一次性初始化，例如懒加载全局配置。
+>* 单例模式：通过 `Once` 可以实现线程安全的单例模式，确保某个对象在整个程序生命周期内只被初始化一次。
+>
+>下面这个例子是带返回值的例子，实现懒加载全局配置的场景：
 
-use std::sync::{Once, ONCE_INIT};
+```rust
+use std::sync::Once;
 
 static mut GLOBAL_CONFIG: Option<String> = None;
-static INIT: Once = ONCE_INIT;
+static INIT_CONFIG: Once = Once::new();
 
 fn init_global_config() {
+    println!("Init Config");
     unsafe {
         GLOBAL_CONFIG = Some("Initialized global configuration".to_string());
     }
 }
 
 fn get_global_config() -> &'static str {
-    INIT.call_once(|| init_global_config());
+    INIT_CONFIG.call_once(|| {
+        init_global_config()
+    });
     unsafe {
         GLOBAL_CONFIG.as_ref().unwrap()
     }
 }
 
-fn main() {
-    println!("{}", get_global_config());
-    println!("{}", get_global_config()); // 不会重新初始化，只会输出一次
+pub fn once_exp_get_config () {
+    println!("start");
+    println!("init: {}", get_global_config());
+    println!("get: {}", get_global_config()); // 不会重新初始化，只会输出一次
 }
-在这个例子中，get_global_config 函数通过 Once 确保 init_global_config 函数只会被调用一次，从而实现了全局配置的懒加载。
+```
 
-上一章我们还介绍了OnceCell和OnceLock,它们都是同一族的单次初始化的并发原语，主要区别是:
+>在这个例子中，`get_global_config` 函数通过 `Once` 确保 `init_global_config` 函数只会被调用一次，从而实现了全局配置的懒加载。
+>
+>`OnceCell`和`OnceLock`,都是同一族的单次初始化的并发原语，主要区别是:
+>
+>* `Once` 是用于确保某个操作在整个程序生命周期内只执行一次的原语。它适用于全局初始化、懒加载和单例模式等场景。
+>* `OnceCell` 是一个针对某种数据类型进行包装的懒加载容器，可以在需要时执行一次性初始化，并在之后提供对初始化值的访问。
+>* `OnceLock` 是一个可用于线程安全的懒加载的原语，类似于 `OnceCell`，但是更简单，只能存储 `Copy` 类型的数据。
+>* `OnceCell` 不是线程安全的，而`OnceLock`是线程安全的，但是`OnceLock`只能存储 `Copy` 类型的数据，而`OnceCell`可以存储任意类型的数据。
+>
+>还有一个被广泛使用的第三方库`once_cell`,它提供了线程安全和非线程安全的两种类型的`OnceCell`.
+>
+>下面就是一个线程安全的例子：
 
-Once 是用于确保某个操作在整个程序生命周期内只执行一次的原语。它适用于全局初始化、懒加载和单例模式等场景。
-OnceCell 是一个针对某种数据类型进行包装的懒加载容器，可以在需要时执行一次性初始化，并在之后提供对初始化值的访问。
-OnceLock 是一个可用于线程安全的懒加载的原语，类似于 OnceCell，但是更简单，只能存储 Copy 类型的数据。
-OnceCell不是线程安全的，而OnceLock是线程安全的，但是OnceLock只能存储 Copy 类型的数据，而OnceCell可以存储任意类型的数据。
+```rust
+pub fn once_cell_exp() {
+    use once_cell::sync::OnceCell;
 
-还有一个被广泛使用的第三方库once_cell,它提供了线程安全和非线程安全的两种类型的OnceCell, 比如下面就是一个线程安全的例子：
+    static CELL: OnceCell<String> = OnceCell::new();
+    assert!(CELL.get().is_none());
 
-use once_cell::sync::OnceCell;
+    std::thread::spawn(|| {
+        let value: &String = CELL.get_or_init(|| "Hello, World!".to_string());
+        assert_eq!(value, "Hello, World!");
+    })
+    .join()
+    .unwrap();
 
-static CELL: OnceCell<String> = OnceCell::new();
-assert!(CELL.get().is_none());
+    let value: Option<&String> = CELL.get();
+    assert!(value.is_some());
+    assert_eq!(value.unwrap().as_str(), "Hello, World!");
+    println!("once_cell {:?}", value);
+}
+```
 
-std::thread::spawn(|| {
-    let value: &String = CELL.get_or_init(|| {
-        "Hello, World!".to_string()
-    });
-    assert_eq!(value, "Hello, World!");
-}).join().unwrap();
+## 屏障/栅栏 Barrier
 
-let value: Option<&String> = CELL.get();
-assert!(value.is_some());
-assert_eq!(value.unwrap().as_str(), "Hello, World!");
-屏障/栅栏 Barrier
-Barrier 是 Rust 标准库中的一种并发原语，用于在多个线程之间创建一个同步点。它允许多个线程在某个点上等待，直到所有线程都到达该点，然后它们可以同时继续执行。
+>`Barrier` 是 `Rust` 标准库中的一种并发原语，用于在多个线程之间创建一个同步点。它允许多个线程在某个点上等待，直到所有线程都到达该点，然后它们可以同时继续执行。
+>
+>下面是一个使用Barrier的例子：
 
-下面是一个使用Barrier的例子：
+```rust
+pub fn barrier_exp() {
+    use std::sync::{Arc, Barrier};
+    use std::thread;
 
-use std::sync::{Arc, Barrier};
-use std::thread;
-
-fn main() {
     // 创建一个 Barrier，指定参与同步的线程数量
     let barrier = Arc::new(Barrier::new(3)); // 在这个例子中，有 3 个线程参与同步
 
@@ -683,45 +832,70 @@ fn main() {
         handle.join().unwrap();
     }
 }
-在这个例子中，创建了一个 Barrier，并指定了参与同步的线程数量为 3。然后，创建了三个线程，每个线程模拟一些工作，然后调用 barrier.wait() 来等待其他线程。当所有线程都调用了 wait 后，它们同时继续执行。
 
-使用场景
+```
 
-并行计算：当需要确保多个线程在某个点上同步，以便执行某些计算或任务时，可以使用 Barrier。
-迭代步骤同步：在一些算法中，可能需要多个步骤，每个步骤的结果都依赖于其他步骤的完成。Barrier 可以用于确保所有线程完成当前步骤后再继续下一步。
-协同工作的阶段：在多阶段的任务中，可以使用 Barrier 来同步各个阶段。
-Barrier 的灵活性使得它在协调多个线程的执行流程时非常有用。
+>在上面例子中，创建了一个 `Barrier`，并指定了参与同步的线程数量为 3。然后，创建了三个线程，每个线程模拟一些工作，然后调用 `barrier.wait()` 来等待其他线程。
+>
+>当所有线程都调用了 `wait` 后，它们同时继续执行。
+>
+>使用场景:
+>
+>* 并行计算：
+>   * 当需要确保多个线程在某个点上同步，以便执行某些计算或任务时，可以使用 `Barrier`。
+>* 迭代步骤同步：
+>   * 在一些算法中，可能需要多个步骤，每个步骤的结果都依赖于其他步骤的完成。
+>   * `Barrier` 可以用于确保所有线程完成当前步骤后再继续下一步。
+>* 协同工作的阶段：
+>   * 在多阶段的任务中，可以使用 `Barrier` 来同步各个阶段。
+>
+>`Barrier` 的灵活性使得它在协调多个线程的执行流程时非常有用。
+>
+>`Barrier` 可以循环使用,因为一旦所有线程都通过 `wait` 方法达到同步点后，`Barrier` 就被重置，可以再次使用。
+>
+>这种重置操作是自动的。
+>
+>当所有线程都调用 `wait` 方法后，`Barrier` 的内部状态会被重置，下一次调用 `wait` 方法时，线程会重新被阻塞，直到所有线程再次到达同步点。
+>
+>这保证了 `Barrier` 可以被循环使用，用于多轮的同步。
+>
+>以下是一个简单的示例，演示了 `Barrier` 的循环使用：
 
-那么，Barrier 可以循环使用吗？一旦所有线程都通过 wait 方法达到同步点后，Barrier 就被重置，可以再次使用。这种重置操作是自动的。
-
-当所有线程都调用 wait 方法后，Barrier 的内部状态会被重置，下一次调用 wait 方法时，线程会重新被阻塞，直到所有线程再次到达同步点。这样，Barrier 可以被循环使用，用于多轮的同步。
-
-以下是一个简单的示例，演示了 Barrier 的循环使用：
+```rust
+pub fn barrier_loop() {
+    use rand::Rng;
+    use std::sync::{Arc, Barrier};
+    use std::thread;
+    use std::time;
 
     let barrier = Arc::new(Barrier::new(10));
     let mut handles = vec![];
 
-    for _ in 0..10 {
+    for index in 0..10 {
         let barrier = barrier.clone();
         handles.push(thread::spawn(move || {
-            println!("before wait1");
+            println!("before wait {}", index);
             let dur = rand::thread_rng().gen_range(100..1000);
             thread::sleep(std::time::Duration::from_millis(dur));
 
             //step1
             barrier.wait();
-            println!("after wait1");
+            println!("after wait {}", index);
             thread::sleep(time::Duration::from_secs(1));
 
             //step2
             barrier.wait();
-            println!("after wait2");
+            println!("after wait {}", index);
         }));
     }
 
     for handle in handles {
         handle.join().unwrap();
     }
+}
+```
+
+
 条件变量 Condvar
 Condvar 是 Rust 标准库中的条件变量（Condition Variable），用于在多线程之间进行线程间的协调和通信。条件变量允许线程等待某个特定的条件成立，当条件满足时，线程可以被唤醒并继续执行。
 
@@ -1237,7 +1411,7 @@ Release建立写之前的happens-before关系,Acquire建立读之后的关系。
 
 参考资料
 [1]
-未定义的行为: https://github.com/rust-lang/rust/issues/32260
+未定义的行为: 
 
 [2]
 mpmc: https://crates.io/crates/mpmc
