@@ -8,3 +8,4 @@ Can't you be a clown?
 * [使用rust重写一个ping工具](./doc/my_rebuild_mping.md)
 * [Rust并发数据安全操作(上)](./doc/my_container_concurrency-01.md)
 * [Rust并发数据安全操作(下)](./doc/my_container_concurrency-02.md)
+* [Rust并发下的集合类型](./doc/my_set_concurrency.md)

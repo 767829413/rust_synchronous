@@ -3,7 +3,7 @@ mod concurrency;
 mod mping;
 use base::{my_async_await as maa, my_thread as mt, my_thread_pool as mtp};
 use concurrency::{
-    my_atomic, my_barrier, my_box, my_cell, my_cow, my_mpsc, my_mutex, my_once, my_rc,
+    my_atomic, my_barrier, my_box, my_cell, my_cow, my_mpsc, my_mutex, my_once, my_rc, my_set,
 };
 use std::thread;
 
@@ -62,6 +62,12 @@ fn my_concurrency() {
     my_atomic::atomic_ordering_acquire();
     my_atomic::atomic_ordering_release();
     my_atomic::atomic_ordering_acqrel();
+    my_set::vec_exp();
+    my_set::hash_map_exp();
+    my_set::dash_map_exp();
+    my_set::cuckoofilter_exp();
+    my_set::evmap_exp();
+    my_set::arc_swap_exp();
 }
 
 // mping
