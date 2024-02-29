@@ -2,7 +2,9 @@ mod base;
 mod concurrency;
 mod mping;
 use base::{my_async_await as maa, my_thread as mt, my_thread_pool as mtp};
-use concurrency::{my_barrier, my_box, my_cell, my_cow, my_mutex, my_once, my_rc};
+use concurrency::{
+    my_atomic, my_barrier, my_box, my_cell, my_cow, my_mpsc, my_mutex, my_once, my_rc,
+};
 use std::thread;
 
 fn main() {
@@ -50,6 +52,16 @@ fn my_concurrency() {
     my_once::once_cell_exp();
     my_barrier::barrier_exp();
     my_barrier::barrier_loop();
+    my_mpsc::mpsc_exp();
+    my_mpsc::mpsc_producer();
+    my_mpsc::mpsc_sync();
+    my_mpsc::mpsc_receiver_error();
+    my_atomic::atomic_exp();
+    my_atomic::atomic_ordering_relaxed();
+    my_atomic::atomic_ordering_seqcst();
+    my_atomic::atomic_ordering_acquire();
+    my_atomic::atomic_ordering_release();
+    my_atomic::atomic_ordering_acqrel();
 }
 
 // mping

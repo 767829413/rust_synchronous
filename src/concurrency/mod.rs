@@ -5,3 +5,5 @@ pub mod my_rc;
 pub mod my_mutex;
 pub mod my_once;
 pub mod my_barrier;
+pub mod my_mpsc;
+pub mod my_atomic;

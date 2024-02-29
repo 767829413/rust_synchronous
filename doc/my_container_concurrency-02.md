@@ -895,16 +895,19 @@ pub fn barrier_loop() {
 }
 ```
 
+## 条件变量 Condvar
 
-条件变量 Condvar
-Condvar 是 Rust 标准库中的条件变量（Condition Variable），用于在多线程之间进行线程间的协调和通信。条件变量允许线程等待某个特定的条件成立，当条件满足时，线程可以被唤醒并继续执行。
+>`Condvar` 是 `Rust` 标准库中的条件变量`（Condition Variable）`，用于在多线程之间进行线程间的协调和通信。
+>
+>条件变量允许线程等待某个特定的条件成立，当条件满足时，线程可以被唤醒并继续执行。
+>
+>以下是 Condvar 的一个例子：
 
-以下是 Condvar 的一个例子：
+```rust
+pub fn condvar_exp() {
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::thread;
 
-use std::sync::{Arc, Mutex, Condvar};
-use std::thread;
-
-fn main() {
     // 创建一个 Mutex 和 Condvar，用于共享状态和线程协调
     let mutex = Arc::new(Mutex::new(false));
     let condvar = Arc::new(Condvar::new());
@@ -947,166 +950,261 @@ fn main() {
         handle.join().unwrap();
     }
 }
-在这个例子中，创建了一个 Mutex 和 Condvar，其中 Mutex 用于保护共享状态（条件），而 Condvar 用于等待和唤醒线程。多个线程在 Mutex 上加锁后，通过 condvar.wait() 方法等待条件满足，然后在主线程中修改条件，并通过 condvar.notify_all() 唤醒所有等待的线程。
+```
 
-使用场景
+>在这个例子中，创建了一个 `Mutex` 和 `Condvar`，其中 `Mutex` 用于保护共享状态（条件），而 `Condvar` 用于等待和唤醒线程。
+>多个线程在 `Mutex` 上加锁后，通过 `condvar.wait()` 方法等待条件满足，然后在主线程中修改条件，并通过 `condvar.notify_all()` 唤醒所有等待的线程。
+>
+>使用场景:
+>
+>* 线程间同步：
+>   * Condvar 可以用于线程之间的同步，使得线程能够等待某个条件的成立而不是轮询检查。
+>* 生产者-消费者模型：
+>   * 在多线程环境中，生产者线程可以通过条件变量通知消费者线程有新的数据产生。
+>* 线程池：
+>   * 在线程池中，任务线程可以等待条件变量，等待新的任务到达时被唤醒执行。
+>
+>需要注意的是，使用 `Condvar` 时，通常需要配合 `Mutex` 使用，以确保在等待和修改条件时的线程安全性。
+>
+>`Condvar` 可以通过调用 `notify_one()` 方法来发出信号。
+>当 `notify_one()` 方法被调用时，`Condvar` 会随机选择一个正在等待信号的线程，并释放该线程。
+>`Condvar` 也可以通过调用 `notify_all()` 方法来发出信号。
+>当 `notify_all()` 方法被调用时，`Condvar` 会释放所有正在等待信号的线程。
 
-线程间同步：Condvar 可以用于线程之间的同步，使得线程能够等待某个条件的成立而不是轮询检查。
-生产者-消费者模型：在多线程环境中，生产者线程可以通过条件变量通知消费者线程有新的数据产生。
-线程池：在线程池中，任务线程可以等待条件变量，等待新的任务到达时被唤醒执行。
-需要注意的是，使用 Condvar 时，通常需要配合 Mutex 使用，以确保在等待和修改条件时的线程安全性。
+## LazyCell 和 LazyLock
 
-Condvar 可以通过调用 notify_one() 方法来发出信号。当 notify_one() 方法被调用时，Condvar 会随机选择一个正在等待信号的线程，并释放该线程。Condvar 也可以通过调用 notify_all() 方法来发出信号。当 notify_all() 方法被调用时，Condvar 会释放所有正在等待信号的线程。
+>两个类似`OnceCell`和`OnceLock`适用于懒加载的并发原语`LazyCell`和`LazyLock`。
+>
+>`Rust` 中的 `LazyCell` 和 `LazyLock` 都是用于懒惰初始化对象的工具。
+>
+>`LazyCell` 用于懒惰初始化值，`LazyLock` 用于懒惰初始化资源。
+>
+| 类型 | 用途 | 初始化时机 | 线程安全 |
+| :---: | :---: | :---: | :---: |
+| `LazyCell` | 懒惰初始化值 | 第一次访问 | 否 |
+| `LazyLock` | 懒惰初始化资源 | 第一次获取锁 | 是 |
+| `OnceCell` | 懒惰初始化单例值 | 第一次调用 | get_or_init() 方法 |
+| `OnceLock` | 懒惰初始化互斥锁 | 第一次调用 | lock() 方法 |
 
-LazyCell 和 LazyLock
-我们介绍了OnceCell和OnceLock,我们再介绍两个类似的用于懒加载的并发原语LazyCell和LazyLock。
+## Exclusive
 
-Rust 中的 LazyCell 和 LazyLock 都是用于懒惰初始化对象的工具。LazyCell 用于懒惰初始化值，LazyLock 用于懒惰初始化资源。
+>`Rust` 中的 `Exclusive` 是一个用于保证某个资源只被一个线程访问的工具。
+>`Exclusive` 可以通过导入 `std::sync::Exclusive` 来使用。
 
-类型	用途	初始化时机	线程安全
-LazyCell	懒惰初始化值	第一次访问	否
-LazyLock	懒惰初始化资源	第一次获取锁	是
-OnceCell	懒惰初始化单例值	第一次调用	get_or_init() 方法
-OnceLock	懒惰初始化互斥锁	第一次调用	lock() 方法
-Exclusive
-Rust 中的 Exclusive 是一个用于保证某个资源只被一个线程访问的工具。Exclusive 可以通过导入 std::sync::Exclusive 来使用。
-
+```rust
+pub fn exclusive_exp() {
+    use std::sync::Exclusive;
     let mut exclusive = Exclusive::new(92);
     println!("ready");
     std::thread::spawn(move || {
         let counter = exclusive.get_mut();
         println!("{}", *counter);
         *counter = 100;
-    }).join().unwrap();
-和 Mutex 有什么区别？Exclusive 仅提供对底层值的可变访问，也称为对底层值的独占访问。它不提供对底层值的不可变或共享访问。
+    })
+    .join()
+    .unwrap();
+}
+```
 
-虽然这可能看起来不太有用，但它允许 Exclusive 无条件地实现 Sync。事实上，Sync 的安全要求是，对于 Exclusive 而言，它必须可以安全地跨线程共享，也就是说，&Exclusive 跨越线程边界时必须是安全的。出于设计考虑，&Exclusive 没有任何 API，使其无用，因此无害，因此内存安全。
+>`Exclusive` 和 `Mutex` 有什么区别？
+>
+>* `Exclusive` 仅提供对底层值的可变访问，也称为对底层值的独占访问。
+>* 不提供对底层值的不可变或共享访问。
+>
+>虽然这可能看起来不太有用，但它允许 `Exclusive` 无条件地实现 `Sync`。
+>事实上，`Sync` 的安全要求是，对于 `Exclusive` 而言，它必须可以安全地跨线程共享，也就是说，`&Exclusive` 跨越线程边界时必须是安全的。
+>出于设计考虑，`&Exclusive` 没有任何 `API`，使其无用，因此无害，因此内存安全。
+>
+>这个类型还是一个 `nightly` 的实验性特性，所以不妨等它稳定后在学习和使用。
 
-这个类型还是一个 nightly 的实验性特性，所以我们不妨等它稳定后在学习和使用。
+## mpsc
 
-mpsc
-mpsc 是 Rust 标准库中的一个模块，提供了多生产者、单消费者（Multiple Producers, Single Consumer）的消息传递通道。mpsc 是 multiple-producer, single-consumer 的缩写。这个模块基于 channel 的基于消息传递的通讯，具体定义了三个类型：
+>`mpsc` 是 `Rust` 标准库中的一个模块，提供了多生产者、单消费者`（Multiple Producers, Single Consumer）`的消息传递通道。>`mpsc` 是 `multiple-producer, single-consumer` 的缩写。这个模块基于 `channel` 的基于消息传递的通讯
+>
+>具体定义了三个类型：
+>
+>* `Sender`：
+>   * 发送者，用于异步发送消息。
+>* `SyncSender`：
+>   * 同步发送者，用于同步发送消息。
+>* `Receiver`：
+>   * 接收者，用于从同步 `channel` 或异步 `channel` 中接收消息，只能有一个线程访问。
+>
+>`Sender` 或 `SyncSender` 用于向 `Receiver` 发送数据。
+>
+>两种 `sender` 都是可 `clone` 的(多生产者),这样多个线程就可以同时向一个 `receiver(单消费者)`发送。
+>
+>这些通道有两种类型:
+>
+>* 异步的,无限缓冲区的通道
+>   * channel 函数将返回一个 `(Sender, Receiver)` 元组,其中所有发送将是异步的(永不阻塞)。
+>   * 该通道在概念上具有无限的缓冲区。
+>
+>* 同步的,有界的通道。
+>   * `sync_channel` 函数将返回一个 (`SyncSender, Receiver`) 元组,待发送消息的存储区是一个固定大小的预分配缓冲区。
+>   * 所有发送将是同步的,通过阻塞直到有空闲的缓冲区空间。
+>   * 注意绑定大小为 0 也是允许的,这将使通道变成一个“约定”通道,每个发送方原子地将一条消息交给接收方。
+>
+>使用场景:
+>
+>* 并发消息传递：
+>   * 适用于多个线程（生产者）向一个线程（消费者）发送消息的场景。
+>
+>* 任务协调：
+>   * 用于协调多个并发任务的执行流程。
+>
+> `rust` 的 `mpsc`,可以和 `Go` 的 `channel` 作比较，事实上 `rust` 的 `channel` 使用起来也非常的简单。
+>
+>一个简单的 channel 例子如下：
 
-Sender：发送者，用于异步发送消息。
-SyncSender：同步发送者，用于同步发送消息。
-Receiver：接收者，用于从同步 channel 或异步 channel 中接收消息，只能有一个线程访问。
-Sender 或 SyncSender 用于向 Receiver 发送数据。两种 sender 都是可 clone 的(多生产者),这样多个线程就可以同时向一个 receiver(单消费者)发送。
+```rust
+pub fn mpsc_exp() {
+    use std::sync::mpsc::channel;
+    use std::thread;
 
-这些通道有两种类型:
-
-异步的,无限缓冲区的通道。channel 函数将返回一个 (Sender, Receiver) 元组,其中所有发送将是异步的(永不阻塞)。该通道在概念上具有无限的缓冲区。
-同步的,有界的通道。sync_channel 函数将返回一个 (SyncSender, Receiver) 元组,待发送消息的存储区是一个固定大小的预分配缓冲区。所有发送将是同步的,通过阻塞直到有空闲的缓冲区空间。注意绑定大小为 0 也是允许的,这将使通道变成一个“约定”通道,每个发送方原子地将一条消息交给接收方。
-使用场景
-
-并发消息传递：适用于多个线程（生产者）向一个线程（消费者）发送消息的场景。
-任务协调：用于协调多个并发任务的执行流程。
-每当看到 rust 的 mpsc,我总是和 Go 的 channel 作比较，事实上 rust 的 channel 使用起来也非常的简单。
-
-一个简单的 channel 例子如下：
-
-use std::thread;
-use std::sync::mpsc::channel;
-
-// Create a simple streaming channel
-let (tx, rx) = channel();
-thread::spawn(move|| {
-    tx.send(10).unwrap();
-});
-assert_eq!(rx.recv().unwrap(), 10);
-一个多生产者单消费者的例子：
-
-use std::thread;
-use std::sync::mpsc::channel;
-
-// Create a shared channel that can be sent along from many threads
-// where tx is the sending half (tx for transmission), and rx is the receiving
-// half (rx for receiving).
-let (tx, rx) = channel();
-for i in 0..10 {
-    let tx = tx.clone();
-    thread::spawn(move|| {
-        tx.send(i).unwrap();
+    // Create a simple streaming channel
+    let (tx, rx) = channel();
+    thread::spawn(move || {
+        tx.send(10).unwrap();
     });
+    assert_eq!(rx.recv().unwrap(), 10);
 }
+```
 
-for _ in 0..10 {
-    let j = rx.recv().unwrap();
-    assert!(0 <= j && j < 10);
+>一个多生产者单消费者的例子：
+
+```rust
+pub fn mpsc_producer() {
+    use std::sync::mpsc::channel;
+    use std::thread;
+
+    // Create a shared channel that can be sent along from many threads
+    // where tx is the sending half (tx for transmission), and rx is the receiving
+    // half (rx for receiving).
+    let (tx, rx) = channel();
+    for i in 0..10 {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            tx.send(i).unwrap();
+        });
+    }
+
+    for _ in 0..10 {
+        let j = rx.recv().unwrap();
+        println!("j: {}", j);
+    }
 }
-一个同步 channel 的例子：
+```
 
-use std::sync::mpsc::sync_channel;
-use std::thread;
+>一个同步 channel 的例子：
 
-let (tx, rx) = sync_channel(3);
+```rust
+pub fn mpsc_sync() {
+    use std::sync::mpsc::sync_channel;
+    use std::thread;
 
-for _ in 0..3 {
-    // It would be the same without thread and clone here
-    // since there will still be one `tx` left.
-    let tx = tx.clone();
-    // cloned tx dropped within thread
-    thread::spawn(move || tx.send("ok").unwrap());
+    let (tx, rx) = sync_channel(3);
+
+    for _ in 0..3 {
+        // It would be the same without thread and clone here
+        // since there will still be one `tx` left.
+        let tx = tx.clone();
+        // cloned tx dropped within thread
+        thread::spawn(move || tx.send("ok").unwrap());
+    }
+
+    // Drop the last sender to stop `rx` waiting for message.
+    // The program will not complete if we comment this out.
+    // **All** `tx` needs to be dropped for `rx` to have `Err`.
+    drop(tx);
+
+    // Unbounded receiver waiting for all senders to complete.
+    while let Ok(msg) = rx.recv() {
+        println!("{msg}");
+    }
+
+    println!("completed");
 }
+```
 
-// Drop the last sender to stop `rx` waiting for message.
-// The program will not complete if we comment this out.
-// **All** `tx` needs to be dropped for `rx` to have `Err`.
-drop(tx);
+>发送端释放的情况下，receiver 会收到 error:
 
-// Unbounded receiver waiting for all senders to complete.
-while let Ok(msg) = rx.recv() {
-    println!("{msg}");
+```rust
+pub fn mpsc_receiver_error() {
+    use std::sync::mpsc::channel;
+
+    // The call to recv() will return an error because the channel has already
+    // hung up (or been deallocated)
+    let (tx, rx) = channel::<i32>();
+    drop(tx);
+    println!("is error: {}, error is {:?}", rx.recv().is_err(), rx.recv());
 }
+```
 
-println!("completed");
-发送端释放的情况下，receiver 会收到 error:
+>在 `Rust` 标准库中，目前没有提供原生的 `MPMC（Multiple Producers, Multiple Consumers）`通道。
+>`std::sync::mpsc` 模块提供的是单一消费者的通道，主要是出于设计和性能的考虑。
+>
+>设计上，`MPSC` 通道的实现相对较简单，可以更容易地满足特定的性能需求，并且在很多情况下是足够的。
+>同时，`MPSC`通道的使用场景更为常见，例如在线程池中有一个任务队列，多个生产者将任务推送到队列中，而单个消费者负责执行这些任务。
+>
+>一些第三方库提供的 channel 以及类似的同步原语，如oneshot、broadcaster、mpmc等。
+>
+>依照这个 [mpmc](https://crates.io/crates/mpmc) 的介绍，以前的 `rust` 标准库应该是实现了`mpmc`,这个库就是从老的标准库中抽取出来的。
 
-use std::sync::mpsc::channel;
+## 信号量 Semaphore
 
-// The call to recv() will return an error because the channel has already
-// hung up (or been deallocated)
-let (tx, rx) = channel::<i32>();
-drop(tx);
-assert!(rx.recv().is_err());
-在 Rust 标准库中，目前没有提供原生的 MPMC（Multiple Producers, Multiple Consumers）通道。std::sync::mpsc 模块提供的是单一消费者的通道，主要是出于设计和性能的考虑。
+>有时间再更新吧
 
-设计上，MPSC 通道的实现相对较简单，可以更容易地满足特定的性能需求，并且在很多情况下是足够的。同时，MPSC 通道的使用场景更为常见，例如在线程池中有一个任务队列，多个生产者将任务推送到队列中，而单个消费者负责执行这些任务。
+## 原子操作 atomic
 
-未来我会在专门的章节中介绍更多的第三方库提供的 channel 以及类似的同步原语，如oneshot、broadcaster、mpmc等。
+>`Rust` 中的原子操作`（Atomic Operation）`是一种特殊的操作，可以在多线程环境中以原子方式进行，即不会被其他线程的操作打断。
+>原子操作可以保证数据的线程安全性，避免数据竞争。
+>
+>在 `Rust` 中，`std::sync::atomic` 模块提供了一系列用于原子操作的类型和函数。原子操作是一种特殊的操作，可以在多线程环境中安全地执行，而不需要使用额外的锁。
+>
+>`atomic` 可以用于各种场景，例如：
+>
+>* 保证某个值的一致性。
+>* 防止多个线程同时修改某个值。
+>* 实现互斥锁。
+>
+>目前 `Rust` 原子类型遵循与[C++20 atomic](https://en.cppreference.com/w/cpp/atomic)相同的规则,具体来说就是`atomic_ref`。>基本上,创建 `Rust` 原子类型的一个共享引用,相当于在 `C++`中创建一个`atomic_ref`
+>当共享引用的生命周期结束时,`atomic_ref`也会被销毁。(一个被独占拥有或者位于可变引用后面的 `Rust` 原子类型,并不对应 `C++` 中的“原子对象”,因为它可以通过非原子操作被访问。)
+>
+>这个模块为一些基本类型定义了原子版本,包括`AtomicBool、AtomicIsize、AtomicUsize、AtomicI8、AtomicU16`等。
+>原子类型提供的操作在正确使用时可以在线程间同步更新。
+>
+>| 名称 | 描叙 |
+>| :--: | :--: |
+>| AtomicBool| 	A boolean type which can be safely shared between threads. |
+>| AtomicI8| 	An integer type which can be safely shared between threads. |
+>| AtomicI16| 	An integer type which can be safely shared between threads. |
+>| AtomicI32| 	An integer type which can be safely shared between threads. |
+>| AtomicI64| 	An integer type which can be safely shared between threads. |
+>| AtomicIsize| 	An integer type which can be safely shared between threads. |
+>| AtomicPtr| 	A raw pointer type which can be safely shared between threads. |
+>| AtomicU8| 	An integer type which can be safely shared between threads. |
+>| AtomicU16| 	An integer type which can be safely shared between threads. |
+>| AtomicU32| 	An integer type which can be safely shared between threads. |
+>| AtomicU64| 	An integer type which can be safely shared between threads. |
+>| AtomicUsize| 	An integer type which can be safely shared between threads. |
+>
+>每个方法都带有一个[Ordering](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html)参数,表示该操作的内存屏障的强度。
+>
+>这些排序与`C++20` [原子排序](https://en.cppreference.com/w/cpp/atomic/memory_order)相同。
+>更多信息请参阅[nomicon](https://doc.rust-lang.org/nomicon/atomics.html)。
+>
+>原子变量在线程间安全共享(实现了 `Sync`),但它本身不提供共享机制,遵循 `Rust` 的线程模型。
+>共享一个原子变量最常见的方式是把它放到一个`Arc`中(一个原子引用计数的共享指针)。
+>
+>原子类型可以存储在静态变量中,使用像`AtomicBool::new`这样的常量初始化器初始化。
+>原子静态变量通常用于懒惰的全局初始化。
+>
+>这个模块为一些基本类型定义了原子版本，包括`AtomicBool、AtomicIsize、AtomicUsize、AtomicI8、AtomicU16`等，其实每一种类似的方法都比较类似的，所以举个`AtomicI64`介绍。可以通过`pub const fn new(v: i64) -> AtomicI64`得到一个`AtomicI64`对象
+>
+>`AtomicI64`定义了一些方法，用于对原子变量进行操作，例如：
 
-依照这个mpmc[2]的介绍，以前的 rust 标准库应该是实现了mpmc,这个库就是从老的标准库中抽取出来的。
-
-信号量 Semaphore
-标准库中没有 Semaphore 的实现，单这个是在是非常通用的一个并发原语，理论上也应该在这里介绍。
-
-但是这一章内容也非常多了，而且我也会在 tokio 中介绍信号两，在一个专门的特殊并发原语(第十四章或者更多)，所以不在这个章节专门介绍了。
-
-这个章节还是偏重标准库的并发原语的介绍。
-
-原子操作 atomic
-Rust 中的原子操作（Atomic Operation）是一种特殊的操作，可以在多线程环境中以原子方式进行，即不会被其他线程的操作打断。原子操作可以保证数据的线程安全性，避免数据竞争。
-
-在 Rust 中，std::sync::atomic 模块提供了一系列用于原子操作的类型和函数。原子操作是一种特殊的操作，可以在多线程环境中安全地执行，而不需要使用额外的锁。
-
-atomic 可以用于各种场景，例如：
-
-保证某个值的一致性。
-防止多个线程同时修改某个值。
-实现互斥锁。
-目前 Rust 原子类型遵循与C++20 atomic[3]相同的规则,具体来说就是atomic_ref。基本上,创建 Rust 原子类型的一个共享引用,相当于在 C++中创建一个atomic_ref;当共享引用的生命周期结束时,atomic_ref也会被销毁。(一个被独占拥有或者位于可变引用后面的 Rust 原子类型,并不对应 C++中的“原子对象”,因为它可以通过非原子操作被访问。)
-
-这个模块为一些基本类型定义了原子版本,包括AtomicBool、AtomicIsize、AtomicUsize、AtomicI8、AtomicU16等。原子类型提供的操作在正确使用时可以在线程间同步更新。
-
-图片
-
-每个方法都带有一个Ordering[4]参数,表示该操作的内存屏障的强度。这些排序与C++20 原子排序[5]相同。更多信息请参阅nomicon[6]。
-
-原子变量在线程间安全共享(实现了 Sync),但它本身不提供共享机制,遵循 Rust 的线程模型。共享一个原子变量最常见的方式是把它放到一个Arc中(一个原子引用计数的共享指针)。
-
-原子类型可以存储在静态变量中,使用像AtomicBool::new这样的常量初始化器初始化。原子静态变量通常用于懒惰的全局初始化。
-
-我们已经说了，这个模块为一些基本类型定义了原子版本，包括AtomicBool、AtomicIsize、AtomicUsize、AtomicI8、AtomicU16等，其实每一种类似的方法都比较类似的，所以我们以AtomicI64介绍。可以通过pub const fn new(v: i64) -> AtomicI64得到一个AtomicI64对象， AtomicI64定义了一些方法，用于对原子变量进行操作，例如：
-
+```rust
 // i64 和 AtomicI64的转换，以及一组对象之间的转换
 pub unsafe fn from_ptr<'a>(ptr: *mut i64) -> &'a AtomicI64
 pub const fn as_ptr(&self) -> *mut i64
@@ -1151,92 +1249,134 @@ where
     F: FnMut(i64) -> Option<i64>,
 pub fn fetch_max(&self, val: i64, order: Ordering) -> i64
 pub fn fetch_min(&self, val: i64, order: Ordering) -> i64
-如果你有一点原子操作的基础，就不难理解这些原子操作以及它们的变种了:
+```
 
-store:原子写入
-load:原子读取
-swap:原子交换
-compare_and_swap:原子比较并交换
-fetch_add:原子加法后返回旧值
-下面这个例子演示了AtomicI64的基本原子操作：
+>如果你有一点原子操作的基础，就不难理解这些原子操作以及它们的变种了:
+>
+>* `store`:原子写入
+>* `load`:原子读取
+>* `swap`:原子交换
+>* `compare_exchange`:原子比较并交换
+>* `fetch_add`:原子加法后返回旧值
+>
+>下面这个例子演示了AtomicI64的基本原子操作：
 
-use std::sync::atomic::{AtomicI64, Ordering};
+```rust
+pub fn atomic_exp() {
+    use std::sync::atomic::{AtomicI64, Ordering};
 
-let atomic_num = AtomicI64::new(0);
+    let atomic_num = AtomicI64::new(0);
 
-// 原子加载
-let num = atomic_num.load(Ordering::Relaxed);
+    // 原子加载
+    let _num = atomic_num.load(Ordering::Relaxed);
 
-// 原子加法并返回旧值
-let old = atomic_num.fetch_add(10, Ordering::SeqCst);
+    // 原子加法并返回旧值
+    let old = atomic_num.fetch_add(10, Ordering::SeqCst);
 
-// 原子比较并交换
-atomic_num.compare_and_swap(old, 100, Ordering::SeqCst);
+    // 原子比较并交换
+    _ = atomic_num.compare_exchange(old, 100, Ordering::SeqCst, Ordering::Acquire);
 
-// 原子交换
-let swapped = atomic_num.swap(200, Ordering::Release);
+    // 原子交换
+    let _swapped = atomic_num.swap(200, Ordering::Release);
 
-// 原子存储
-atomic_num.store(1000, Ordering::Relaxed);
-上面示例了:
+    // 原子存储
+    atomic_num.store(1000, Ordering::Relaxed);
+}
+```
 
-load: 原子加载
-fetch_add: 原子加法并返回旧值
-compare_and_swap: 原子比较并交换
-swap: 原子交换
-store: 原子存储
-这些原子操作都可以确保线程安全,不会出现数据竞争。
+>上面示例了:
+>
+>`load`: 原子加载
+>`fetch_add`: 原子加法并返回旧值
+>`compare_exchange`: 原子比较并交换
+>`swap`: 原子交换
+>`store`: 原子存储
+>
+>这些原子操作都可以确保线程安全,不会出现数据竞争。
+>
+>不同的`Ordering`表示内存序不同强度的屏障,可以根据需要选择。
+>
+>`AtomicI64`提供了丰富的原子操作,可以实现无锁的并发算法和数据结构
 
-不同的Ordering表示内存序不同强度的屏障,可以根据需要选择。
+### 原子操作的 Ordering
 
-AtomicI64提供了丰富的原子操作,可以实现无锁的并发算法和数据结构
+>在 `Rust` 中，`Ordering` 枚举用于指定原子操作时的`内存屏障（memory ordering）`。这与 `C++` 的内存模型中的原子操作顺序性有一些相似之处，但也有一些不同之处。
+>
+>下面是 `Ordering` 的三个主要成员以及它们与 `C++` 中的内存顺序的对应关系：
+>
+>* `Ordering::Relaxed`
+>   * `Rust（Ordering::Relaxed）`：
+>     * 最轻量级的内存屏障，没有对执行顺序进行强制排序。
+>     * 允许编译器和处理器在原子操作周围进行指令重排。
+>   * `C++（memory_order_relaxed）`：
+>     * 具有相似的语义，允许编译器和处理器在原子操作周围进行轻量级的指令重排。
+>
+>* `Ordering::Acquire`
+>   * `Rust（Ordering::Acquire）`：
+>     * 插入一个获取内存屏障，防止后续的读操作被重排序到当前操作之前。
+>     * 确保当前操作之前的所有读取操作都在当前操作之前执行。
+>   * `C++（memory_order_acquire）`：
+>     * 在 `C++` 中，`memory_order_acquire` 表示获取操作，确保当前操作之前的读取操作都在当前操作之前执行。
+>
+>* `Ordering::Release`
+>   * `Rust（Ordering::Release）`：
+>     * 插入一个释放内存屏障，防止之前的写操作被重排序到当前操作之后。
+>     * 确保当前操作之后的所有写操作都在当前操作之后执行。
+>   * `C++（memory_order_release）`：
+>     * 在 `C++` 中，`memory_order_release` 表示释放操作，确保之前的写操作都在当前操作之后执行。
+>
+>* `Ordering::AcqRel`
+>   * `Rust（Ordering::AcqRel）`：
+>     * 插入一个获取释放内存屏障，既确保当前操作之前的所有读取操作都在当前操作之前执行，又确保之前的所有写操作都在当前操作之后执行。
+>     * 这种内存屏障提供了一种平衡，适用于某些获取和释放操作交替进行的场景。
+>   * `C++（memory_order_acq_rel）`：
+>     * 也表示获取释放操作，它是获取和释放的组合。
+>     * 确保当前操作之前的所有读取操作都在当前操作之前执行，同时确保之前的所有写操作都在当前操作之后执行。
+>
+>* `Ordering::SeqCst`
+>   * `Rust（Ordering::SeqCst）`：
+>     * 插入一个全序内存屏障，保证所有线程都能看到一致的操作顺序。
+>     * 是最强的内存顺序，用于实现全局同步。
+>   * `C++（memory_order_seq_cst）`：
+>     * 在 `C++` 中，`memory_order_seq_cst` 也表示全序操作，保证所有线程都能看到一致的操作顺序。
+>     * 是 `C++` 中的最强的内存顺序。
+>
+>合理选择 `Ordering` 可以最大程度提高性能,同时保证需要的内存序约束。
+>
+>但是如何合理的选择，这就依赖开发者的基本账功了，使用原子操作时需要小心，确保正确地选择适当的 `Ordering`，以及避免竞态条件和数据竞争。
+>
+>像 `Go` 语言，直接使用了`Ordering::SeqCst`作为它的默认的内存屏障，开发者使用起来就没有心智负担了，但是你如果想更精细化的使用`Ordering`,请确保你一定清晰的了解你的代码逻辑和 `Ordering` 的意义。
 
-原子操作的 Ordering
-在 Rust 中，Ordering 枚举用于指定原子操作时的内存屏障（memory ordering）。这与 C++ 的内存模型中的原子操作顺序性有一些相似之处，但也有一些不同之处。下面是 Ordering 的三个主要成员以及它们与 C++ 中的内存顺序的对应关系：
+#### Ordering::Relaxed
 
-Ordering::Relaxed
-Rust（Ordering::Relaxed）：最轻量级的内存屏障，没有对执行顺序进行强制排序。允许编译器和处理器在原子操作周围进行指令重排。\
-C++（memory_order_relaxed）：具有相似的语义，允许编译器和处理器在原子操作周围进行轻量级的指令重排。
-Ordering::Acquire
-Rust（Ordering::Acquire）：插入一个获取内存屏障，防止后续的读操作被重排序到当前操作之前。确保当前操作之前的所有读取操作都在当前操作之前执行。
-C++（memory_order_acquire）：在 C++ 中，memory_order_acquire 表示获取操作，确保当前操作之前的读取操作都在当前操作之前执行。
-Ordering::Release
-Rust（Ordering::Release）：插入一个释放内存屏障，防止之前的写操作被重排序到当前操作之后。确保当前操作之后的所有写操作都在当前操作之后执行。
-C++（memory_order_release）：在 C++ 中，memory_order_release 表示释放操作，确保之前的写操作都在当前操作之后执行。
-Ordering::AcqRel
-Rust（Ordering::AcqRel）：插入一个获取释放内存屏障，既确保当前操作之前的所有读取操作都在当前操作之前执行，又确保之前的所有写操作都在当前操作之后执行。这种内存屏障提供了一种平衡，适用于某些获取和释放操作交替进行的场景。
-C++（memory_order_acq_rel）：也表示获取释放操作，它是获取和释放的组合。确保当前操作之前的所有读取操作都在当前操作之前执行，同时确保之前的所有写操作都在当前操作之后执行。
-Ordering::SeqCst
-Rust（Ordering::SeqCst）：插入一个全序内存屏障，保证所有线程都能看到一致的操作顺序。是最强的内存顺序，用于实现全局同步。
-C++（memory_order_seq_cst）：在 C++ 中，memory_order_seq_cst 也表示全序操作，保证所有线程都能看到一致的操作顺序。是 C++ 中的最强的内存顺序。
-合理选择 Ordering 可以最大程度提高性能,同时保证需要的内存序约束。
+>`Ordering::Relaxed` 是最轻量级的内存顺序，允许编译器和处理器在原子操作周围进行指令重排，不提供强制的执行顺序。
+>这通常在对程序执行的顺序没有严格要求时使用，以获得更高的性能。
+>
+>以下是一个简单的例子，演示了 Ordering::Relaxed 的用法：
 
-但是如何合理的选择，这就依赖开发者的基本账功了，使用原子操作时需要小心，确保正确地选择适当的 Ordering，以及避免竞态条件和数据竞争。
+```rust
+pub fn atomic_ordering_relaxed() {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread;
 
-像 Go 语言，直接使用了Ordering::SeqCst作为它的默认的内存屏障，开发者使用起来就没有心智负担了，但是你如果想更精细化的使用Ordering,请确保你一定清晰的了解你的代码逻辑和 Ordering 的意义。
-
-Ordering::Relaxed
-Ordering::Relaxed 是最轻量级的内存顺序，允许编译器和处理器在原子操作周围进行指令重排，不提供强制的执行顺序。这通常在对程序执行的顺序没有严格要求时使用，以获得更高的性能。
-
-以下是一个简单的例子，演示了 Ordering::Relaxed 的用法：
-
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
-
-fn main() {
-    // 创建一个原子布尔值
-    let atomic_bool = AtomicBool::new(false);
-
-    // 创建一个生产者线程，设置布尔值为 true
+    // 创建一个原子布尔值，并用 Arc 包装起来, 设置布尔值为 true
+    let atomic_bool = Arc::new(AtomicBool::new(false));
+    
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
+    // 创建一个生产者线程，
     let producer_thread = thread::spawn(move || {
         // 这里可能会有指令重排，因为使用了 Ordering::Relaxed
-        atomic_bool.store(true, Ordering::Relaxed);
+        atomic_bool_clone.store(true, Ordering::Relaxed);
     });
 
     // 创建一个消费者线程，检查布尔值的状态
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let consumer_thread = thread::spawn(move || {
         // 这里可能会有指令重排，因为使用了 Ordering::Relaxed
-        let value = atomic_bool.load(Ordering::Relaxed);
+        let value = atomic_bool_clone.load(Ordering::Relaxed);
         println!("Received value: {}", value);
     });
 
@@ -1244,30 +1384,43 @@ fn main() {
     producer_thread.join().unwrap();
     consumer_thread.join().unwrap();
 }
-Ordering::Acquire
-Ordering::Acquire 在 Rust 中表示插入一个获取内存屏障，确保当前操作之前的所有读取操作都在当前操作之前执行。这个内存顺序常常用于同步共享数据，以确保线程能够正确地观察到之前的写入操作。
+```
 
-以下是一个使用 Ordering::Acquire 的简单例子：
+#### Ordering::Acquire
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
+>`Ordering::Acquire` 在 `Rust` 中表示插入一个获取内存屏障，确保当前操作之前的所有读取操作都在当前操作之前执行。
+>这个内存顺序常常用于同步共享数据，以确保线程能够正确地观察到之前的写入操作。
+>
+>以下是一个使用 `Ordering::Acquire` 的简单例子：
 
-fn main() {
+```rust
+pub fn atomic_ordering_acquire() {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread;
+
     // 创建一个原子布尔值
-    let atomic_bool = AtomicBool::new(false);
+    let atomic_bool = Arc::new(AtomicBool::new(false));
 
     // 创建一个生产者线程，设置布尔值为 true
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let producer_thread = thread::spawn(move || {
+        thread::sleep(std::time::Duration::from_secs(1));
         // 设置布尔值为 true
-        atomic_bool.store(true, Ordering::Release);
+        atomic_bool_clone.store(true, Ordering::Release);
     });
 
     // 创建一个消费者线程，读取布尔值的状态
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let consumer_thread = thread::spawn(move || {
         // 等待直到读取到布尔值为 true
-        while !atomic_bool.load(Ordering::Acquire) {
+        while !atomic_bool_clone.load(Ordering::Acquire) {
             // 这里可能进行自旋，直到获取到 Acquire 顺序的布尔值
             // 注意：在实际应用中，可以使用更高级的同步原语而不是自旋
+            println!("Wait value");
+            thread::sleep(std::time::Duration::from_secs(1));
         }
 
         println!("Received value: true");
@@ -1277,30 +1430,42 @@ fn main() {
     producer_thread.join().unwrap();
     consumer_thread.join().unwrap();
 }
-Ordering::Release
-Ordering::Release 在 Rust 中表示插入一个释放内存屏障，确保之前的所有写入操作都在当前操作之后执行。这个内存顺序通常用于同步共享数据，以确保之前的写入操作对其他线程可见。
+```
 
-以下是一个使用 Ordering::Release 的简单例子：
+#### Ordering::Release
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
+>`Ordering::Release` 在 `Rust` 中表示插入一个释放内存屏障，确保之前的所有写入操作都在当前操作之后执行。
+>这个内存顺序通常用于同步共享数据，以确保之前的写入操作对其他线程可见。
+>
+>以下是一个使用 `Ordering::Release` 的简单例子：
 
-fn main() {
+```rust
+pub fn atomic_ordering_release() {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread;
     // 创建一个原子布尔值
-    let atomic_bool = AtomicBool::new(false);
+    let atomic_bool = Arc::new(AtomicBool::new(false));
 
     // 创建一个生产者线程，设置布尔值为 true
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let producer_thread = thread::spawn(move || {
+        thread::sleep(std::time::Duration::from_secs(1));
         // 设置布尔值为 true
-        atomic_bool.store(true, Ordering::Release);
+        atomic_bool_clone.store(true, Ordering::Release);
     });
 
     // 创建一个消费者线程，读取布尔值的状态
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let consumer_thread = thread::spawn(move || {
         // 等待直到读取到布尔值为 true
-        while !atomic_bool.load(Ordering::Acquire) {
+        while !atomic_bool_clone.load(Ordering::Acquire) {
             // 这里可能进行自旋，直到获取到 Release 顺序的布尔值
             // 注意：在实际应用中，可以使用更高级的同步原语而不是自旋
+            println!("Wait value");
+            thread::sleep(std::time::Duration::from_secs(1));
         }
 
         println!("Received value: true");
@@ -1310,31 +1475,44 @@ fn main() {
     producer_thread.join().unwrap();
     consumer_thread.join().unwrap();
 }
+```
 
-在这个例子中，生产者线程使用 store 方法将布尔值设置为 true，而消费者线程使用 load 方法等待并读取布尔值的状态。由于使用了 Ordering::Release，在生产者线程设置布尔值之后，会插入释放内存屏障，确保之前的所有写入操作都在当前操作之后执行。这确保了消费者线程能够正确地观察到生产者线程的写入操作。
+>在这个例子中，生产者线程使用 `store` 方法将布尔值设置为 `true`，而消费者线程使用 `load`方法等待并读取布尔值的状态。
+>由于使用了 `Ordering::Release`，在生产者线程设置布尔值之后，会插入释放内存屏障，确保之前的所有写入操作都在当前操作之后执行。这确保了消费者线程能够正确地观察到生产者线程的写入操作。
 
-Ordering::AcqRel
-Ordering::AcqRel 在 Rust 中表示插入一个获取释放内存屏障，即同时包含获取和释放操作。它确保当前操作之前的所有读取操作都在当前操作之前执行，并确保之前的所有写入操作都在当前操作之后执行。这个内存顺序通常用于同步共享数据，同时提供了一些平衡，适用于需要同时执行获取和释放操作的场景。
+#### Ordering::AcqRel
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
+>`Ordering::AcqRel` 在 `Rust` 中表示插入一个获取释放内存屏障，即同时包含获取和释放操作。
+>它确保当前操作之前的所有读取操作都在当前操作之前执行，并确保之前的所有写入操作都在当前操作之后执行。
+>这个内存顺序通常用于同步共享数据，同时提供了一些平衡，适用于需要同时执行获取和释放操作的场景。
 
-fn main() {
+```rust
+pub fn atomic_ordering_acqrel() {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread;
     // 创建一个原子布尔值
-    let atomic_bool = AtomicBool::new(false);
+    let atomic_bool = Arc::new(AtomicBool::new(false));
 
     // 创建一个生产者线程，设置布尔值为 true
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let producer_thread = thread::spawn(move || {
+        thread::sleep(std::time::Duration::from_secs(1));
         // 设置布尔值为 true
-        atomic_bool.store(true, Ordering::AcqRel);
+        atomic_bool_clone.store(true, Ordering::Release);
     });
 
     // 创建一个消费者线程，读取布尔值的状态
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let consumer_thread = thread::spawn(move || {
         // 等待直到读取到布尔值为 true
-        while !atomic_bool.load(Ordering::AcqRel) {
-            // 这里可能进行自旋，直到获取到 AcqRel 顺序的布尔值
+        while !atomic_bool_clone.load(Ordering::Acquire) {
+            // 这里可能进行自旋，直到获取到 Acquire 顺序的布尔值
             // 注意：在实际应用中，可以使用更高级的同步原语而不是自旋
+            println!("Wait value");
+            thread::sleep(std::time::Duration::from_secs(1));
         }
 
         println!("Received value: true");
@@ -1344,32 +1522,46 @@ fn main() {
     producer_thread.join().unwrap();
     consumer_thread.join().unwrap();
 }
-在这个例子中，生产者线程使用 store 方法将布尔值设置为 true，而消费者线程使用 load 方法等待并读取布尔值的状态。由于使用了 Ordering::AcqRel，在生产者线程设置布尔值之后，会插入获取释放内存屏障，确保之前的所有读取操作都在当前操作之前执行，同时确保之前的所有写入操作都在当前操作之后执行。这确保了消费者线程能够正确地观察到生产者线程的写入操作。
+```
 
-Ordering::SeqCst
-Ordering::SeqCst 在 Rust 中表示插入一个全序内存屏障，保证所有线程都能看到一致的操作顺序。这是最强的内存顺序，通常用于实现全局同步。
+>在这个例子中，生产者线程使用 `store` 方法将布尔值设置为 `true`，而消费者线程使用 `load` 方法等待并读取布尔值的状态。
+>由于使用了 `Ordering::AcqRel`，在生产者线程设置布尔值之后，会插入获取释放内存屏障，确保之前的所有读取操作都在当前操作之前执行，同时确保之前的所有写入操作都在当前操作之后执行。
+>这确保了消费者线程能够正确地观察到生产者线程的写入操作。
 
-以下是一个使用 Ordering::SeqCst 的简单例子：
+#### Ordering::SeqCst
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
+>`Ordering::SeqCst` 在 `Rust` 中表示插入一个全序内存屏障，保证所有线程都能看到一致的操作顺序。
+>这是最强的内存顺序，通常用于实现全局同步。
+>
+>以下是一个使用 `Ordering::SeqCst` 的简单例子：
 
-fn main() {
+```rust
+pub fn atomic_ordering_seqcst() {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread;
     // 创建一个原子布尔值
-    let atomic_bool = AtomicBool::new(false);
+    let atomic_bool = Arc::new(AtomicBool::new(false));
 
     // 创建一个生产者线程，设置布尔值为 true
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let producer_thread = thread::spawn(move || {
+        thread::sleep(std::time::Duration::from_secs(1));
         // 设置布尔值为 true
-        atomic_bool.store(true, Ordering::SeqCst);
+        atomic_bool_clone.store(true, Ordering::SeqCst);
     });
 
     // 创建一个消费者线程，读取布尔值的状态
+    let atomic_bool_clone = Arc::clone(&atomic_bool);
     let consumer_thread = thread::spawn(move || {
         // 等待直到读取到布尔值为 true
-        while !atomic_bool.load(Ordering::SeqCst) {
+        while !atomic_bool_clone.load(Ordering::SeqCst) {
             // 这里可能进行自旋，直到获取到 SeqCst 顺序的布尔值
             // 注意：在实际应用中，可以使用更高级的同步原语而不是自旋
+            println!("Wait value");
+            thread::sleep(std::time::Duration::from_secs(1));
         }
 
         println!("Received value: true");
@@ -1379,56 +1571,49 @@ fn main() {
     producer_thread.join().unwrap();
     consumer_thread.join().unwrap();
 }
-在这个例子中，生产者线程使用 store 方法将布尔值设置为 true，而消费者线程使用 load 方法等待并读取布尔值的状态。由于使用了 Ordering::SeqCst，在生产者线程设置布尔值之后，会插入全序内存屏障，确保所有线程都能看到一致的操作顺序。这确保了消费者线程能够正确地观察到生产者线程的写入操作。SeqCst 是最强的内存顺序，提供了最高级别的同步保证。
+```
 
-在 Rust 中,Ordering::Acquire内存顺序通常与Ordering::Release配合使用。
+>在这个例子中，生产者线程使用 `store` 方法将布尔值设置为 `true`，而消费者线程使用 `load` 方法等待并读取布尔值的状态。
+>由于使用了 `Ordering::SeqCst`，在生产者线程设置布尔值之后，会插入全序内存屏障，确保所有线程都能看到一致的操作顺序。
+>这确保了消费者线程能够正确地观察到生产者线程的写入操作。`SeqCst` 是最强的内存顺序，提供了最高级别的同步保证。
 
-Ordering::Acquire和Ordering::Release之间形成happens-before关系,可以实现不同线程之间的同步。
+#### Ordering 使用总结
 
-其典型用法是:
-
-当一个线程使用 Ordering::Release 写一个变量时,这给写操作建立一个释放屏障。
-其他线程使用 Ordering::Acquire 读这个变量时,这给读操作建立一个获取屏障。
-获取屏障确保读操作必须发生在释放屏障之后。
-这样就可以实现:
-
-写线程确保写发生在之前的任何读之前
-读线程可以看到最新的写入值
-此外, Ordering::AcqRel也经常被用来同时具有两者的语义。
-
-如果用happens-before描述这五种内存顺序，那么:
-
-Relaxed: 没有 happens-before 关系
-Release: 对于给定的写操作 A,该释放操作 happens-before 读操作 B,当 B 读取的是 A 写入的最新值。和Acquire配套使用。
-Acquire: 对于给定的读操作 A,该获取操作 happens-after 写操作 B,当 A 读取的是 B 写入的最新值。和Release配套使用。
-AcqRel: 同时满足 Acquire 和 Release 的 happens-before 关系。
-SeqCst: 所有的 SeqCst 操作之间都存在 happens-before 关系,形成一个全序。
-happens-before关系表示对给定两个操作 A 和 B:
-
-如果A happens-before B,那么 A 对所有线程可见,必须先于 B 执行。
-如果没有happens-before关系,则 A 和 B 之间可能存在重排序和可见性问题。
-Release建立写之前的happens-before关系,Acquire建立读之后的关系。两者搭配可以实现写入对其他线程可见。、SeqCst强制一个全序,所有操作都是有序的。
-
-参考资料
-[1]
-未定义的行为: 
-
-[2]
-mpmc: https://crates.io/crates/mpmc
-
-[3]
-C++20 atomic: https://en.cppreference.com/w/cpp/atomic
-
-[4]
-Ordering: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html
-
-[5]
-C++20 原子排序: https://en.cppreference.com/w/cpp/atomic/memory_order
-
-[6]
-nomicon: https://doc.rust-lang.org/nomicon/atomics.html
-
-Rust并发编程4 - 容器类并发原语
-Rust并发编程3 - async/await 异步编程
-Rust并发编程2 - 线程池
-Rust并发编程1 - 线程
+>在 `Rust` 中,`Ordering::Acquire`内存顺序通常与`Ordering::Release`配合使用。
+>
+>`Ordering::Acquire`和`Ordering::Release`之间形成`happens-before`关系,可以实现不同线程之间的同步。
+>
+>其典型用法是:
+>
+>* 当一个线程使用 `Ordering::Release` 写一个变量时,这给写操作建立一个释放屏障。
+>* 其他线程使用 `Ordering::Acquire` 读这个变量时,这给读操作建立一个获取屏障。
+>* 获取屏障确保读操作必须发生在释放屏障之后。
+>
+>这样就可以实现:
+>
+>* 写线程确保写发生在之前的任何读之前
+>* 读线程可以看到最新的写入值
+>
+>此外, `Ordering::AcqRel`也经常被用来同时具有两者的语义。
+>
+>如果用`happens-before`描述这五种内存顺序，那么:
+>
+>* `Relaxed`: 
+>   * 没有 `happens-before` 关系
+>* `Release`: 
+>   * 对于给定的写操作 A,该释放操作 `happens-before` 读操作 B,当 B 读取的是 A 写入的最新值。和`Acquire`配套使用。
+>* `Acquire`: 
+>   * 对于给定的读操作 A,该获取操作 `happens-after` 写操作 B,当 A 读取的是 B 写入的最新值。和`Release`配套使用。
+>* `AcqRel`: 
+>   * 同时满足 `Acquire` 和 `Release` 的 `happens-before` 关系。
+>* `SeqCst`: 
+>   * 所有的 `SeqCst` 操作之间都存在 `happens-before` 关系,形成一个全序。
+>
+>`happens-before`关系表示对给定两个操作 A 和 B:
+>
+>* 如果`A happens-before B`,那么 A 对所有线程可见,必须先于 B 执行。
+>* 如果没有`happens-before`关系,则 A 和 B 之间可能存在重排序和可见性问题。
+>
+>`Release`建立写之前的`happens-before`关系,`Acquire`建立读之后的关系。两者搭配可以实现写入对其他线程可见。
+>
+>`SeqCst`强制一个全序,所有操作都是有序的。
