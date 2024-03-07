@@ -67,6 +67,7 @@ struct Opt {
     free: Vec<std::path::PathBuf>,
 }
 
+#[cfg(target_os = "linux")]
 pub fn run() -> Result<(), anyhow::Error> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format(|buf, record| {

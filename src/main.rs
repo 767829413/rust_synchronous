@@ -18,8 +18,8 @@ fn main() {
     rt.block_on(task);
     maa::tokio_async();
      */
-
     my_concurrency()
+
 }
 
 // concurrency
@@ -72,6 +72,7 @@ fn my_concurrency() {
 
 // mping
 #[allow(unused)]
+#[cfg(target_os = "linux")]
 fn my_mping() -> Result<(), anyhow::Error> {
     return mping::exec::run();
 }
