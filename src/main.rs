@@ -1,14 +1,28 @@
 mod base;
 mod concurrency;
-mod mping;
 use base::{my_async_await as maa, my_thread as mt, my_thread_pool as mtp};
 use concurrency::{
     my_atomic, my_barrier, my_box, my_cell, my_cow, my_mpsc, my_mutex, my_once, my_rc, my_set,
 };
 use std::thread;
 
-fn main() {
+#[cfg(target_os = "linux")]
+mod mping;
 
+fn main() {
+    use std::env;
+    env::set_var("RUST_LOG", "trace");
+    env_logger::init(); // 初始化 env_logger
+
+    let number_option: Option<u32> = Some(42);
+    let string_option: Option<String> = number_option.map(|num| num.to_string());
+
+    log::trace!("{:?}", string_option); // 使用日志宏记录信息
+
+    let none_option: Option<u32> = None;
+    let empty_string_option: Option<String> = none_option.map(|num| num.to_string());
+
+    log::trace!("{:?}", empty_string_option); // 使用日志宏记录信息
 }
 
 // test some things
@@ -16,7 +30,7 @@ fn main() {
 fn test() {
     /*
     _ = my_mping();
-        // 创建了一个 Tokio 运行时rt
+    // 创建了一个 Tokio 运行时rt
     let rt = tokio::runtime::Runtime::new().unwrap();
     let task = async {
         async_await_example().await
