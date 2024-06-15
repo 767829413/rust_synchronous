@@ -1,3 +1,5 @@
+#![cfg(target_os = "linux")]
+
 use core::result::Result::Ok;
 use std::collections::BTreeMap;
 use std::io::{Error, ErrorKind};
@@ -9,7 +11,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use cfg_if::cfg_if;
 
-#[cfg(target_os = "linux")]
 cfg_if! {
     if #[cfg(target_os = "linux")] {
         use libc::{
@@ -28,7 +29,6 @@ cfg_if! {
     }
 }
 
-#[cfg(target_os = "linux")]
 use std::os::unix::io::AsRawFd;
 
 use log::{error, info, warn};
@@ -92,7 +92,7 @@ pub struct PingOption {
 /// - `popt` 是 PingOption struct
 /// - `enable_print_stat` 是一个 bool 值，用于在日志中打印 ping 状态
 /// - `tx`` 是发送 ping 结果的发件人, 如果 tx 为 None，ping 将不会发送结果
-#[cfg(target_os = "linux")]
+
 pub fn ping(
     addrs: Vec<IpAddr>,
     popt: PingOption,

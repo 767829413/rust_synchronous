@@ -8,6 +8,12 @@ use concurrency::{
 use std::thread;
 
 fn main() {
+
+}
+
+// test some things
+#[allow(unused)]
+fn test() {
     /*
     _ = my_mping();
         // 创建了一个 Tokio 运行时rt
@@ -19,7 +25,6 @@ fn main() {
     maa::tokio_async();
      */
     my_concurrency()
-
 }
 
 // concurrency

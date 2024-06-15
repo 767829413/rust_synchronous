@@ -11,3 +11,4 @@ Can't you be a clown?
 * [Rust:并发下的集合类型](./doc/ch7-set_concurrency/my_set_concurrency.md)
 * [Rust:Mutex内部实现](./doc/ch8-mutex_internal/my_mutex_internal.md)
 * [Rust tips 1~20](./doc/ch9-rust_tips/1~20.md)
+* [Rust tips 21~40](./doc/ch9-rust_tips/21~40.md)

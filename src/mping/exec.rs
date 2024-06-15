@@ -1,3 +1,5 @@
+#![cfg(target_os = "linux")]
+
 use std::io::Write;
 use std::net::{IpAddr, ToSocketAddrs};
 use std::process;

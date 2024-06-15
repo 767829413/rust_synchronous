@@ -1,3 +1,5 @@
+#![cfg(target_os = "linux")]
+
 use std::cmp::Ordering;
 use std::{
     collections::BinaryHeap,
