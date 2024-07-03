@@ -10,5 +10,4 @@ Can't you be a clown?
 * [Rust:并发数据安全操作(下)](./doc/ch6-concurrent_safe_operation_2/my_container_concurrency-02.md)
 * [Rust:并发下的集合类型](./doc/ch7-set_concurrency/my_set_concurrency.md)
 * [Rust:Mutex内部实现](./doc/ch8-mutex_internal/my_mutex_internal.md)
-* [Rust tips 1~20](./doc/ch9-rust_tips/1~20.md)
-* [Rust tips 21~40](./doc/ch9-rust_tips/21~40.md)
+* [Rust tips](./doc/ch9-rust_tips/index.md)
