@@ -20,6 +20,7 @@ pub fn box_auto_data_size() {
     }
     */
     #[derive(Debug)]
+    #[allow(unused)]
     enum List<T> {
         Cons(T, Box<List<T>>),
         Nil,

@@ -10,19 +10,22 @@ use std::thread;
 mod mping;
 
 fn main() {
-    use std::env;
-    env::set_var("RUST_LOG", "trace");
-    env_logger::init(); // 初始化 env_logger
+    #[derive(Debug)]
+    struct Person {
+        _name: String,
+        _age: u8,
+    }
 
-    let number_option: Option<u32> = Some(42);
-    let string_option: Option<String> = number_option.map(|num| num.to_string());
+    let person = Person {
+        _name: String::from("Alice"),
+        _age: 30,
+    };
 
-    log::trace!("{:?}", string_option); // 使用日志宏记录信息
+    // 使用默认的调试格式化器
+    println!("{:?}", person);
 
-    let none_option: Option<u32> = None;
-    let empty_string_option: Option<String> = none_option.map(|num| num.to_string());
-
-    log::trace!("{:?}", empty_string_option); // 使用日志宏记录信息
+    // 使用“美化打印”的调试格式化器
+    println!("{:#?}", person);
 }
 
 // test some things
