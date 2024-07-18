@@ -9,23 +9,14 @@ use std::thread;
 #[cfg(target_os = "linux")]
 mod mping;
 
+fn create_array<const N: usize>(value: i32) -> [i32; N] {
+    [value; N]
+}
+
 fn main() {
-    #[derive(Debug)]
-    struct Person {
-        _name: String,
-        _age: u8,
-    }
-
-    let person = Person {
-        _name: String::from("Alice"),
-        _age: 30,
-    };
-
-    // 使用默认的调试格式化器
-    println!("{:?}", person);
-
-    // 使用“美化打印”的调试格式化器
-    println!("{:#?}", person);
+    const SIZE: usize = 5;
+    let array = create_array::<SIZE>(0);
+    println!("{:?}", array); // 输出: [0, 0, 0, 0, 0]
 }
 
 // test some things
