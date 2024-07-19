@@ -9,13 +9,53 @@ use std::thread;
 #[cfg(target_os = "linux")]
 mod mping;
 
-use std::path::{Path, PathBuf};
+use anyhow::{anyhow, Result};
+fn main() -> Result<()>{
+    use std::fmt;
+    use rand::Rng;
 
-fn main() {
-    let path: PathBuf = PathBuf::from("/usr/bin");
-    let path_ref: &Path = path.as_path();
+    #[derive(Debug)]
+    enum DataStoreError {
+        Censored(String),
+        Other(String),
+    }
 
-    println!("Path: {}", path_ref.display());
+    impl fmt::Display for DataStoreError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                DataStoreError::Censored(msg) => write!(f, "Censored: {}", msg),
+                DataStoreError::Other(msg) => write!(f, "Other: {}", msg),
+            }
+        }
+    }
+
+    impl std::error::Error for DataStoreError {}
+    fn get_data() -> Result<String> {
+        let mut rng = rand::thread_rng();
+        let n: u32 = rng.gen();
+        if n % 2 == 0 {
+            Err(anyhow!(DataStoreError::Censored("Sensitive data".into())))
+        } else {
+            Err(anyhow!(DataStoreError::Other("unknow data".into())))
+        }
+        
+    }
+
+    let error = get_data().unwrap_err();
+    let root_cause = error.root_cause();
+
+    // If the error was caused by redaction, then return a tombstone instead of the content.
+    match root_cause.downcast_ref::<DataStoreError>() {
+        Some(DataStoreError::Censored(_)) => {
+            println!("REDACTED_CONTENT");
+            Ok(())
+        }
+        Some(DataStoreError::Other(_)) => {
+            println!("OTHER_ERROR");
+            Ok(())
+        }
+        None => Err(error),
+    }
 }
 
 // test some things
