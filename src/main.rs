@@ -9,14 +9,13 @@ use std::thread;
 #[cfg(target_os = "linux")]
 mod mping;
 
-fn create_array<const N: usize>(value: i32) -> [i32; N] {
-    [value; N]
-}
+use std::path::{Path, PathBuf};
 
 fn main() {
-    const SIZE: usize = 5;
-    let array = create_array::<SIZE>(0);
-    println!("{:?}", array); // 输出: [0, 0, 0, 0, 0]
+    let path: PathBuf = PathBuf::from("/usr/bin");
+    let path_ref: &Path = path.as_path();
+
+    println!("Path: {}", path_ref.display());
 }
 
 // test some things

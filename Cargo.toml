@@ -47,3 +47,5 @@ dashmap = "5.5.3"
 cuckoofilter = "0.5.0"
 evmap = "10.0.2"
 arc-swap = "1.6.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
